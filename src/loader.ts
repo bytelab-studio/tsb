@@ -49,7 +49,10 @@ export function loadFiles(files: string[], moduleName: string): Project {
         if (!fs.existsSync(file) || !fs.statSync(file).isFile()) {
             throwError(`File '${file}' does not exist or is not a file`);
         }
-        return path.posix.join(process.cwd(), file);
+        if (path.isAbsolute(file)) {
+            return file.replace(/\\/gi, "/");
+        }
+        return path.posix.join(process.cwd().replace(/\\/gi, "/"), file);
     });
 
     return {
@@ -90,4 +93,12 @@ function generateFileMap(files: string[], prefix: string): FileMap {
 
 export function loadProgram(project: Project, config: ts.CompilerOptions): ts.Program {
     return ts.createProgram(project.files, config);
+}
+
+export function isMetaFile(file: string): boolean {
+    return file.endsWith(".d.ts")
+}
+
+export function isSourceFile(file: string): boolean {
+    return file.endsWith(".ts") && !file.endsWith(".d.ts");
 }

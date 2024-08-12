@@ -26,9 +26,4 @@ export class NodeJSPlatform extends PlatformPlugin {
             )
         ];
     }
-
-    public resolveFiles(): string[] {
-        // TODO fetch node modules
-        return loadDir("node_modules").filter(f => !f.startsWith("node_modules/@bytelab.studio/tsb-runtime"));
-    }
 }

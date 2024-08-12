@@ -1,4 +1,6 @@
 import * as ts from "typescript";
+import * as path from "path";
+import * as fs from "fs";
 import {Project} from "./loader";
 
 export abstract class PlatformPlugin {
@@ -6,8 +8,16 @@ export abstract class PlatformPlugin {
 
     public abstract generateChunkLoader(): ts.MethodDeclaration;
 
-    public resolveFiles(): string[] {
-        return [];
+    public isFileIncluded(file: string): boolean {
+        return false;
+    }
+
+    public getIncludeFiles(): string[] {
+        const root: string = path.posix.join(process.cwd().replace(/\\/gi, "/"), "node_modules", "@bytelab.studio", "tsb-runtime");
+        const packageJSON: any = JSON.parse(fs.readFileSync(path.posix.join(root, "package.json"), "utf8"));
+        const runtime: string = path.posix.join(root, packageJSON.types);
+
+        return [runtime];
     }
 
     public generateModuleHeader(): ts.Statement[] {
