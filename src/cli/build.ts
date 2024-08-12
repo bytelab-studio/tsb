@@ -70,7 +70,7 @@ export default function build(args: string[]): void {
         if (!fs.existsSync(entryFile) || !fs.statSync(entryFile).isFile()) {
             throwError(`File '${entryFile}' does not exist or is not a file`);
         }
-        entryFile = path.join(process.cwd(), entryFile).replace(/\\/g, "/");
+        entryFile = path.posix.join(process.cwd(), entryFile);
     }
 
     moduleFiles.push(...loadDir(path.join("node_modules", "@bytelab.studio", "tsb-runtime"), false));

@@ -77,11 +77,11 @@ class Builder {
             function __loader__(dir: string): string[] {
                 const res: string[] = [];
                 fs.readdirSync(dir).forEach(item => {
-                    item = path.join(dir, item);
+                    item = path.posix.join(dir, item);
                     if (fs.statSync(item).isDirectory()) {
                         res.push(...__loader__(item));
                     } else if (item.endsWith(".ts") && !item.endsWith(".d.ts")) {
-                        res.push(item.replace(/\\/g, "/"));
+                        res.push(item);
                     }
                 });
                 return res;

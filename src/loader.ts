@@ -27,14 +27,14 @@ export function loadDir(dir: string, source: boolean = true, declaration: boolea
     function __loader__(dir: string): string[] {
         const res: string[] = [];
         fs.readdirSync(dir).forEach(item => {
-            item = path.join(dir, item);
+            item = path.posix.join(dir, item);
             if (fs.statSync(item).isDirectory()) {
                 res.push(...__loader__(item));
             } else if (
                 source && item.endsWith(".ts") && !item.endsWith(".d.ts") ||
                 declaration && item.endsWith(".d.ts")
             ) {
-                res.push(item.replace(/\\/g, "/"));
+                res.push(item);
             }
         });
         return res;
@@ -49,7 +49,7 @@ export function loadFiles(files: string[], moduleName: string): Project {
         if (!fs.existsSync(file) || !fs.statSync(file).isFile()) {
             throwError(`File '${file}' does not exist or is not a file`);
         }
-        return path.join(process.cwd(), file).replace(/\\/g, "/");
+        return path.posix.join(process.cwd(), file);
     });
 
     return {
