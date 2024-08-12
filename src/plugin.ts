@@ -3,8 +3,29 @@ import * as path from "path";
 import * as fs from "fs";
 import {Project} from "./loader";
 
-export abstract class PlatformPlugin {
-    protected project: Project = {} as Project;
+let project: Project;
+let program: ts.Program;
+
+export function setProject(_project: Project): void {
+    project = _project;
+}
+
+export function setProgram(_program: ts.Program): void {
+    program = _program;
+}
+
+class BasePlugin {
+    protected get project(): Project {
+        return project;
+    }
+
+    protected get program(): ts.Program {
+        return program;
+    }
+}
+
+export abstract class PlatformPlugin extends BasePlugin {
+
 
     public abstract generateChunkLoader(): ts.MethodDeclaration;
 
@@ -35,13 +56,9 @@ export abstract class PlatformPlugin {
     public transformMember(statement: ts.Statement): ts.Statement {
         return statement;
     }
-
-    public setData(project: Project): void {
-        this.project = project;
-    }
 }
 
-export abstract class TransformPlugin {
+export abstract class TransformPlugin extends BasePlugin {
     private static _plugins: TransformPlugin[] = [];
     public static get plugins(): TransformPlugin[] {
         return this._plugins;
@@ -64,7 +81,7 @@ export abstract class TransformPlugin {
     }
 }
 
-export abstract class DataLoaderPlugin {
+export abstract class DataLoaderPlugin extends BasePlugin {
     private static _plugins: DataLoaderPlugin[] = [];
     public static get plugins(): DataLoaderPlugin[] {
         return this._plugins;
@@ -85,7 +102,7 @@ export abstract class DataLoaderPlugin {
     }
 }
 
-export abstract class AppDomainPlugin {
+export abstract class AppDomainPlugin extends BasePlugin {
     private static _plugins: AppDomainPlugin[] = [];
     public static get plugins(): AppDomainPlugin[] {
         return this._plugins;
