@@ -70,7 +70,7 @@ export default function build(args: string[]): void {
         if (!fs.existsSync(entryFile) || !fs.statSync(entryFile).isFile()) {
             throwError(`File '${entryFile}' does not exist or is not a file`);
         }
-        entryFile = path.posix.join(process.cwd(), entryFile);
+        entryFile = path.posix.join(process.cwd().replace(/\\/gi, "/"), entryFile);
     }
 
     const platform: PlatformPlugin = (Platform as any)[platformName] as PlatformPlugin;
