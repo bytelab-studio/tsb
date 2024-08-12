@@ -2,7 +2,7 @@ import * as ts from "typescript";
 import * as path from "path";
 import * as fs from "fs";
 import {OptionFlagArgument, OptionSet} from "@koschel-christoph/node.options";
-import {FileMapEntry, loadDir, loadFiles, loadProgram, Project} from "../loader";
+import {FileMapEntry, isMetaFile, isSourceFile, loadFiles, loadProgram, Project} from "../loader";
 import {transformToModule} from "../transformer";
 import {emitModule} from "../emit";
 import {throwError} from "../error";
@@ -70,16 +70,12 @@ export default function build(args: string[]): void {
         if (!fs.existsSync(entryFile) || !fs.statSync(entryFile).isFile()) {
             throwError(`File '${entryFile}' does not exist or is not a file`);
         }
-        entryFile = path.join(process.cwd(), entryFile).replace(/\\/g, "/");
+        entryFile = path.posix.join(process.cwd().replace(/\\/gi, "/"), entryFile);
     }
 
-    moduleFiles.push(...loadDir(path.join("node_modules", "@bytelab.studio", "tsb-runtime"), false));
-
     const platform: PlatformPlugin = (Platform as any)[platformName] as PlatformPlugin;
-    moduleFiles.push(...platform.resolveFiles().map(p => p.replace(/\\/g, "/")));
 
-
-    const project: Project = loadFiles(moduleFiles, moduleName);
+    const project: Project = loadFiles([...platform.getIncludeFiles(), ...moduleFiles], moduleName);
     platform.setData(project);
 
     if (entryFile && !project.map.find(e => e.file == entryFile)) {
@@ -92,21 +88,33 @@ export default function build(args: string[]): void {
             module: "commonjs",
             forceConsistentCasingInFileNames: true,
             strict: true,
-            alwaysStrict: true,
-            noResolve: true
+            alwaysStrict: true
         },
         files: moduleFiles.filter(f => !f.startsWith("node_modules")),
         include: [
-            "node_modules/**/*"
+            "node_modules/@bytelab.studio/tsb-runtime/**/index.d.ts"
         ]
     }, null, 4));
+
 
     const program: ts.Program = loadProgram(project, {
         module: ts.ModuleKind.CommonJS,
         target: ts.ScriptTarget.ES2023,
+        forceConsistentCasingInFileNames: true,
         esModuleInterop: true,
-        alwaysStrict: true,
-        noResolve: true
+        alwaysStrict: true
+    });
+
+    program.getSourceFiles().map(s => s.fileName).forEach(file => {
+        if (isMetaFile(file)) {
+            return;
+        }
+        if (!isSourceFile(file)) {
+            return;
+        }
+        if (!project.files.includes(file) && !platform.isFileIncluded(file)) {
+            console.log(`WARNING: Loading file '${file}' which is not content of the bundle`);
+        }
     });
 
     const allDiagnostics: readonly ts.Diagnostic[] = ts.getPreEmitDiagnostics(program).concat(program.emit(undefined, fileName => 0).diagnostics);
