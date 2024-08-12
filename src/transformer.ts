@@ -5,44 +5,55 @@ import {PlatformPlugin, TransformPlugin} from "./plugin";
 
 export function transformToModule(sourceFile: ts.SourceFile, info: FileMapEntry, project: Project, platform: PlatformPlugin, transformPlugins: TransformPlugin[]): ts.SourceFile {
     transformPlugins.forEach(plugin => sourceFile = plugin.transformSourceFile(sourceFile));
-    const module: ts.ExpressionStatement = ts.factory.createExpressionStatement(
-        ts.factory.createCallExpression(
-            ts.factory.createPropertyAccessExpression(
-                ts.factory.createIdentifier("module"),
-                ts.factory.createIdentifier("define"),
-            ),
-            undefined,
-            [
-                ts.factory.createStringLiteral(info.hash, false),
-                ts.factory.createArrowFunction(
-                    [ts.factory.createToken(ts.SyntaxKind.AsyncKeyword)],
-                    undefined,
-                    [
-                        ts.factory.createParameterDeclaration(
-                            undefined,
-                            undefined,
-                            ts.factory.createIdentifier("__exports__"),
-                            undefined,
-                            ts.factory.createKeywordTypeNode(ts.SyntaxKind.AnyKeyword),
-                            undefined
-                        ),
-                        ts.factory.createParameterDeclaration(
-                            undefined,
-                            undefined,
-                            ts.factory.createIdentifier("AppDomain"),
-                            undefined,
-                            ts.factory.createKeywordTypeNode(ts.SyntaxKind.AnyKeyword),
-                            undefined
-                        )
-                    ],
-                    undefined,
-                    ts.factory.createToken(ts.SyntaxKind.EqualsGreaterThanToken),
-                    ts.factory.createBlock(sourceFile.statements.map(s => transformMember(sourceFile, info, project, platform.transformMember(s))).flat(), true)
-                )
-            ]
+
+    const visitor: ts.Visitor = <T extends ts.Node>(node: T): T | T[] => {
+        if (ts.isStatement(node)) {
+            return transformMember(sourceFile, info, project, node) as unknown as T[];
+        }
+        return ts.visitEachChild(node, visitor, undefined);
+    }
+    sourceFile = ts.visitNode(sourceFile, visitor) as ts.SourceFile;
+
+    sourceFile = ts.factory.updateSourceFile(sourceFile, [
+        ts.factory.createExpressionStatement(
+            ts.factory.createCallExpression(
+                ts.factory.createPropertyAccessExpression(
+                    ts.factory.createIdentifier("module"),
+                    ts.factory.createIdentifier("define"),
+                ),
+                undefined,
+                [
+                    ts.factory.createStringLiteral(info.hash, false),
+                    ts.factory.createArrowFunction(
+                        [ts.factory.createToken(ts.SyntaxKind.AsyncKeyword)],
+                        undefined,
+                        [
+                            ts.factory.createParameterDeclaration(
+                                undefined,
+                                undefined,
+                                ts.factory.createIdentifier("__exports__"),
+                                undefined,
+                                ts.factory.createKeywordTypeNode(ts.SyntaxKind.AnyKeyword),
+                                undefined
+                            ),
+                            ts.factory.createParameterDeclaration(
+                                undefined,
+                                undefined,
+                                ts.factory.createIdentifier("AppDomain"),
+                                undefined,
+                                ts.factory.createKeywordTypeNode(ts.SyntaxKind.AnyKeyword),
+                                undefined
+                            )
+                        ],
+                        undefined,
+                        ts.factory.createToken(ts.SyntaxKind.EqualsGreaterThanToken),
+                        ts.factory.createBlock(sourceFile.statements.map(s => transformMember(sourceFile, info, project, platform.transformMember(s))).flat(), true)
+                    )
+                ]
+            )
         )
-    );
-    return ts.factory.updateSourceFile(sourceFile, ts.factory.createNodeArray([module]));
+    ]);
+    return sourceFile;
 }
 
 function transformMember(sourceFile: ts.SourceFile, info: FileMapEntry, project: Project, statement: ts.Statement): ts.Statement[] {

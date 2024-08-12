@@ -26,7 +26,7 @@ function checkDirs(outPath: string): void {
 }
 
 function createChunk(platform: PlatformPlugin, hash: string, parts: ts.SourceFile[]): ts.SourceFile {
-    return ts.factory.createSourceFile([
+    return ts.factory.updateSourceFile(parts[0], [
         ts.factory.createBlock(
             [
                 ...platform.generateModuleHeader(),
@@ -35,7 +35,7 @@ function createChunk(platform: PlatformPlugin, hash: string, parts: ts.SourceFil
                 ...parts.map(part => part.statements.map(s => s)).flat()
             ]
         )
-    ], ts.factory.createToken(ts.SyntaxKind.EndOfFileToken), 0);
+    ]);
 }
 
 function chunkModules(modules: ts.SourceFile[], chunkSize: number): ts.SourceFile[][] {
@@ -152,13 +152,6 @@ export function emitModule(
     chunks.forEach((chunk: ts.SourceFile[], index: number): void => {
         const hash: string = fnv.hash(path.join(outPath, "chunks", "chunk" + index)).str();
         let chunkSource: ts.SourceFile = createChunk(platform, hash, chunk);
-        const visitor = (node: ts.Node) => {
-            if (ts.isStringLiteral(node)) {
-                return ts.factory.createStringLiteral((<ts.StringLiteral>node).text);
-            }
-            return ts.visitEachChild(node, visitor, undefined)
-        }
-        chunkSource = ts.visitEachChild(chunkSource, visitor, undefined);
         chunkInfos.push({
             filePath: `./chunks/${hash}.js`,
             hash: hash,
