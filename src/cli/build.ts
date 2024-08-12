@@ -97,7 +97,7 @@ export default function build(args: string[]): void {
         },
         files: moduleFiles.filter(f => !f.startsWith("node_modules")),
         include: [
-            "node_modules/**/*.*"
+            "node_modules/**/*"
         ]
     }, null, 4));
 

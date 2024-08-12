@@ -17,4 +17,8 @@ if (command == "init") {
     init(args);
 } else if (command == "build") {
     build(args);
+} else {
+    console.log(`Unknown command '${command}'`);
+    console.log("Available commands: init, build");
+    process.exit(1);
 }
