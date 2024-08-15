@@ -163,7 +163,7 @@ is supported on the NodeJS platform, and context switching with AppDomains acros
 Nothing in this roadmap is a promise. Everything in this roadmap is changeable.
 
 - [x] Multi-platform support
+- [x] Macro-Plugin
 - [ ] Enable loading files via resource path
 - [ ] Enable loading chunks that are not directly integrated
 - [ ] Some sort of library system using NPM to install bundled libraries
-- [ ] Macro-Plugin
