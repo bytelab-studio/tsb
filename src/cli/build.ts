@@ -7,7 +7,7 @@ import {transformToModule} from "../transformer";
 import {emitModule} from "../emit";
 import {throwError} from "../error";
 import {Platform} from "../platform";
-import {PlatformPlugin, TransformPlugin} from "../plugin";
+import {PlatformPlugin, setProgram, setProject, TransformPlugin} from "../plugin";
 import {loadBuilderScript} from "../builder";
 
 import "../plugins";
@@ -76,7 +76,7 @@ export default function build(args: string[]): void {
     const platform: PlatformPlugin = (Platform as any)[platformName] as PlatformPlugin;
 
     const project: Project = loadFiles([...platform.getIncludeFiles(), ...moduleFiles], moduleName);
-    platform.setData(project);
+    setProject(project);
 
     if (entryFile && !project.map.find(e => e.file == entryFile)) {
         throwError("Entry file is not included in the bundle");
@@ -104,6 +104,7 @@ export default function build(args: string[]): void {
         esModuleInterop: true,
         alwaysStrict: true
     });
+    setProgram(program);
 
     program.getSourceFiles().map(s => s.fileName).forEach(file => {
         if (isMetaFile(file)) {
