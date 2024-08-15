@@ -1,13 +1,15 @@
 import {TransformPlugin} from "../plugin";
 import * as ts from "typescript";
 import {privateDecrypt} from "node:crypto";
-import {ArrowFunction} from "typescript";
+import {ArrowFunction, SourceFile} from "typescript";
 
 // export type NonNullableNonVoid<T> = NonNullable<T> extends void ? never : NonNullable<T>;
 // export type ExpressionMacro<TRet> = (...args: any[]) => NonNullableNonVoid<TRet>;
 // export type StatementMacro = (...args: any[]) => any;
 
 class Macro extends TransformPlugin {
+    private static maxMacroDepth: number = 100;
+
     public get flagName(): string {
         return "macro";
     }
@@ -18,6 +20,8 @@ class Macro extends TransformPlugin {
 
     public transformSourceFile(sourceFile: ts.SourceFile): ts.SourceFile {
         const checker: ts.TypeChecker = this.program.getTypeChecker();
+        let foundMacroCounter: number = 1; // For first iteration
+
         const visitor: ts.Visitor = <T extends ts.Node>(node: T): T | T[] => {
             if (ts.isCallExpression(node) && ts.isIdentifier(node.expression)) {
                 const validMacro = this.isValidMacro(sourceFile, node, checker)
@@ -28,6 +32,7 @@ class Macro extends TransformPlugin {
                 const [type, initializer] = validMacro;
 
                 if (type == "ExpressionMacro") {
+                    foundMacroCounter++;
                     return this.replaceExpressionMacro(initializer, node, checker) as T;
                 }
 
@@ -37,7 +42,7 @@ class Macro extends TransformPlugin {
             }
             if (ts.isExpressionStatement(node)) {
                 if (ts.isCallExpression(node.expression) && ts.isIdentifier(node.expression.expression)) {
-                    const validMacro = this.isValidMacro(sourceFile, node.expression, checker)
+                    const validMacro: false | [string, ArrowFunction] = this.isValidMacro(sourceFile, node.expression, checker)
 
                     if (!validMacro) {
                         return node;
@@ -45,6 +50,7 @@ class Macro extends TransformPlugin {
                     const [type, initializer] = validMacro;
 
                     if (type == "StatementMacro") {
+                        foundMacroCounter++;
                         return this.replaceStatementMacro(initializer, node.expression, checker) as unknown as T[];
                     }
 
@@ -57,7 +63,15 @@ class Macro extends TransformPlugin {
             return ts.visitEachChild(node, visitor, undefined);
         }
 
-        return ts.visitNode(sourceFile, visitor) as ts.SourceFile;
+        let i: number = 0;
+        for (; i < Macro.maxMacroDepth && foundMacroCounter != 0; i++) {
+            foundMacroCounter = 0;
+            sourceFile = ts.visitNode(sourceFile, visitor) as SourceFile;
+        }
+        if (Macro.maxMacroDepth >= i && foundMacroCounter != 0) {
+            console.log(`WARNING: Macro expansion is exceeding the maximum in '${sourceFile.fileName}'. Did you got a macro loop?`);
+        }
+        return sourceFile;
     }
 
     private isValidMacro(sourceFile: ts.SourceFile, node: ts.CallExpression, checker: ts.TypeChecker): false | [string, ArrowFunction] {
