@@ -31,60 +31,27 @@ export function generateChunkLoader(): ts.MethodDeclaration {
                 factory.createVariableStatement(
                     undefined,
                     factory.createVariableDeclarationList(
-                        [factory.createVariableDeclaration(
-                            factory.createIdentifier("path"),
-                            undefined,
-                            factory.createKeywordTypeNode(ts.SyntaxKind.StringKeyword),
-                            factory.createPropertyAccessExpression(
-                                factory.createParenthesizedExpression(factory.createTypeAssertion(
-                                    factory.createTypeReferenceNode(
-                                        factory.createIdentifier("HTMLScriptElement"),
-                                        undefined
+                        [
+                            factory.createVariableDeclaration(
+                                factory.createIdentifier("path"),
+                                undefined,
+                                factory.createKeywordTypeNode(ts.SyntaxKind.StringKeyword),
+                                factory.createBinaryExpression(
+                                    factory.createElementAccessExpression(
+                                        factory.createIdentifier("chunk"),
+                                        factory.createNumericLiteral("0")
                                     ),
-                                    factory.createPropertyAccessExpression(
-                                        factory.createIdentifier("document"),
-                                        factory.createIdentifier("currentScript")
+                                    factory.createToken(ts.SyntaxKind.PlusToken),
+                                    factory.createElementAccessExpression(
+                                        factory.createIdentifier("chunk"),
+                                        factory.createNumericLiteral("1")
                                     )
-                                )),
-                                factory.createIdentifier("src")
+                                )
                             )
-                        )],
-                        ts.NodeFlags.Let | ts.NodeFlags.AwaitContext | ts.NodeFlags.ContextFlags | ts.NodeFlags.TypeExcludesFlags
+                        ],
+                        ts.NodeFlags.Let
                     )
                 ),
-                factory.createExpressionStatement(factory.createBinaryExpression(
-                    factory.createIdentifier("path"),
-                    factory.createToken(ts.SyntaxKind.EqualsToken),
-                    factory.createBinaryExpression(
-                        factory.createCallExpression(
-                            factory.createPropertyAccessExpression(
-                                factory.createIdentifier("path"),
-                                factory.createIdentifier("substring")
-                            ),
-                            undefined,
-                            [
-                                factory.createNumericLiteral("0"),
-                                factory.createCallExpression(
-                                    factory.createPropertyAccessExpression(
-                                        factory.createIdentifier("path"),
-                                        factory.createIdentifier("lastIndexOf")
-                                    ),
-                                    undefined,
-                                    [factory.createStringLiteral("/")]
-                                )
-                            ]
-                        ),
-                        factory.createToken(ts.SyntaxKind.PlusToken),
-                        factory.createBinaryExpression(
-                            factory.createStringLiteral("/"),
-                            factory.createToken(ts.SyntaxKind.PlusToken),
-                            factory.createPropertyAccessExpression(
-                                factory.createIdentifier("chunk"),
-                                factory.createIdentifier("filePath")
-                            )
-                        )
-                    )
-                )),
                 factory.createVariableStatement(
                     undefined,
                     factory.createVariableDeclarationList(

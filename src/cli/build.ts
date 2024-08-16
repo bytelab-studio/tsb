@@ -21,6 +21,7 @@ export default function build(args: string[]): void {
     let outPath: string = "out";
     let chunkSize: number = 10_000;
     let useBuilder: boolean = false;
+    let embeddedFileMap: boolean = false;
     const transformPlugins: TransformPlugin[] = [];
 
     const options: OptionSet = new OptionSet(
@@ -36,6 +37,7 @@ export default function build(args: string[]): void {
             }
             chunkSize = parseInt(v);
         }],
+        ["embedded-file-map", "Includes the file map into the loader", () => embeddedFileMap = true],
         ["script", "Use tsb.js definition in the CWD", () => useBuilder = true],
         ["h|help", "Prints this help string", () => requestHelp = true],
         ...TransformPlugin.plugins.map((plugin: TransformPlugin): OptionFlagArgument => ["plugin-" + plugin.flagName, plugin.flagDescription, () => transformPlugins.push(plugin)])
@@ -118,7 +120,7 @@ export default function build(args: string[]): void {
         }
     });
 
-    const allDiagnostics: readonly ts.Diagnostic[] = ts.getPreEmitDiagnostics(program).concat(program.emit(undefined, fileName => 0).diagnostics);
+    const allDiagnostics: readonly ts.Diagnostic[] = ts.getPreEmitDiagnostics(program).concat(program.emit(undefined, fileName => void 0).diagnostics);
     if (allDiagnostics.length != 0) {
         allDiagnostics.forEach(diagnostic => {
             if (diagnostic.file) {
@@ -146,6 +148,7 @@ export default function build(args: string[]): void {
         path.join(process.cwd(), outPath),
         moduleName,
         chunkSize,
+        embeddedFileMap,
         !!entryFile ? project.map.find(e => e.file == entryFile)!.hash : undefined
     );
 }

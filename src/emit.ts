@@ -1,5 +1,4 @@
 import * as ts from "typescript";
-import {factory, ModuleKind, ScriptTarget} from "typescript";
 import * as fs from "fs";
 import * as path from "path";
 import * as fnv from "fnv-plus";
@@ -11,7 +10,7 @@ import {throwError} from "./error";
 export interface ChunkInfo {
     filePath: string;
     hash: string;
-    modules: string[];
+    modules: [string, string][];
 }
 
 function checkDirs(outPath: string): void {
@@ -23,6 +22,32 @@ function checkDirs(outPath: string): void {
     if (!fs.existsSync(path.join(outPath, "chunks")) || !fs.statSync(path.join(outPath, "chunks")).isDirectory()) {
         fs.mkdirSync(path.join(outPath, "chunks"));
     }
+}
+
+function chainCalls(calls: ts.CallExpression[]): ts.CallExpression {
+    let chain: ts.CallExpression = calls[0];
+
+    for (let i: number = 1; i < calls.length; i++) {
+        chain = ts.factory.createCallExpression(
+            ts.factory.createPropertyAccessExpression(
+                chain,
+                ts.factory.createIdentifier("then")
+            ),
+            undefined,
+            [
+                ts.factory.createArrowFunction(
+                    undefined,
+                    undefined,
+                    [],
+                    undefined,
+                    ts.factory.createToken(ts.SyntaxKind.EqualsGreaterThanToken),
+                    calls[i]
+                )
+            ]
+        )
+    }
+
+    return chain;
 }
 
 function createChunk(platform: PlatformPlugin, hash: string, parts: ts.SourceFile[]): ts.SourceFile {
@@ -67,49 +92,62 @@ function chunkModules(modules: ts.SourceFile[], chunkSize: number): ts.SourceFil
 }
 
 
-function createLoader(platform: PlatformPlugin, chunkInfos: ChunkInfo[], entryHash?: string): ts.SourceFile {
+function createLoader(platform: PlatformPlugin, chunkInfos: ChunkInfo[], embeddedFileMap: boolean, entryHash?: string): ts.SourceFile {
     const statements: ts.Statement[] = [
         generateDataManager(
             platform,
-            ts.factory.createArrayLiteralExpression(
-                chunkInfos.map(info =>
-                    ts.factory.createObjectLiteralExpression(
-                        [
-                            factory.createPropertyAssignment("filePath", ts.factory.createStringLiteral(info.filePath)),
-                            factory.createPropertyAssignment("hash", ts.factory.createStringLiteral(info.hash)),
-                            factory.createPropertyAssignment("loaded", ts.factory.createFalse()),
-                            factory.createPropertyAssignment(
-                                "modules",
+            embeddedFileMap ?
+                ts.factory.createArrayLiteralExpression(
+                    chunkInfos.map(info =>
+                        ts.factory.createArrayLiteralExpression(
+                            [
+                                ts.factory.createStringLiteral("."),
+                                ts.factory.createStringLiteral(info.filePath),
+                                ts.factory.createStringLiteral(info.hash),
+                                ts.factory.createFalse(),
                                 ts.factory.createArrayLiteralExpression(
-                                    info.modules.map(module => ts.factory.createStringLiteral(module))
-                                )
-                            ),
-                            factory.createPropertyAssignment("holder", ts.factory.createNull())
-                        ]
-                    )
-                )
-            )
+                                    info.modules.map(m => ts.factory.createArrayLiteralExpression([
+                                            ts.factory.createStringLiteral(m[0]),
+                                            ts.factory.createStringLiteral(m[1])
+                                        ])
+                                    )
+                                ),
+                                ts.factory.createNull()
+                            ]
+                        ))
+                ) :
+                undefined
         ),
         generateAppDomain(platform),
         generateTSBModule(),
         ...platform.generateCustomLoaderProperties()
     ];
 
+    const callChain: ts.CallExpression[] = [];
+
+    if (!embeddedFileMap) {
+        callChain.push(platform.generateInitFileMapCall());
+    }
+
     if (entryHash) {
-        statements.push(ts.factory.createExpressionStatement(
-            ts.factory.createCallExpression(
+        callChain.push(ts.factory.createCallExpression(
+            ts.factory.createPropertyAccessExpression(
                 ts.factory.createPropertyAccessExpression(
-                    ts.factory.createPropertyAccessExpression(
-                        ts.factory.createIdentifier("AppDomain"),
-                        ts.factory.createIdentifier("primaryDomain")
-                    ),
-                    ts.factory.createIdentifier("resolve")
+                    ts.factory.createIdentifier("AppDomain"),
+                    ts.factory.createIdentifier("primaryDomain")
                 ),
-                undefined,
-                [
-                    ts.factory.createStringLiteral(entryHash)
-                ]
-            )
+                ts.factory.createIdentifier("resolve")
+            ),
+            undefined,
+            [
+                ts.factory.createStringLiteral(entryHash)
+            ]
+        ));
+    }
+
+    if (callChain.length > 0) {
+        statements.push(ts.factory.createExpressionStatement(
+            chainCalls(callChain)
         ));
     }
 
@@ -117,7 +155,6 @@ function createLoader(platform: PlatformPlugin, chunkInfos: ChunkInfo[], entryHa
         ts.factory.createToken(ts.SyntaxKind.EndOfFileToken),
         0
     );
-
 }
 
 function writeSourceFile(file: ts.SourceFile, outPath: string, name: string, transformPlugins: TransformPlugin[]): void {
@@ -126,8 +163,8 @@ function writeSourceFile(file: ts.SourceFile, outPath: string, name: string, tra
     });
     const code: string = printer.printFile(file);
     let result: string = ts.transpile(code, {
-        module: ModuleKind.CommonJS,
-        target: ScriptTarget.ES2023,
+        module: ts.ModuleKind.CommonJS,
+        target: ts.ScriptTarget.ES2023,
         esModuleInterop: true,
         alwaysStrict: true
     });
@@ -143,6 +180,7 @@ export function emitModule(
     outPath: string,
     moduleName: string,
     chunkSize: number,
+    embeddedFileMap: boolean,
     entryHash?: string
 ): void {
     checkDirs(outPath);
@@ -153,12 +191,17 @@ export function emitModule(
         const hash: string = fnv.hash(path.join(outPath, "chunks", "chunk" + index)).str();
         let chunkSource: ts.SourceFile = createChunk(platform, hash, chunk);
         chunkInfos.push({
-            filePath: `./chunks/${hash}.js`,
+            filePath: `/chunks/${hash}.js`,
             hash: hash,
-            modules: project.map.filter(e => parts.map(f => f.fileName).includes(e.file)).map(e => e.hash)
+            modules: project.map.filter(e => parts.map(f => f.fileName).includes(e.file)).map(e => [e.hash, e.resource])
         });
 
         writeSourceFile(chunkSource, path.join(outPath, "chunks"), hash, transformPlugins);
     });
-    writeSourceFile(createLoader(platform, chunkInfos, entryHash), outPath, moduleName, transformPlugins);
+
+    writeSourceFile(createLoader(platform, chunkInfos, embeddedFileMap, entryHash), outPath, moduleName, transformPlugins);
+
+    if (!embeddedFileMap) {
+        fs.writeFileSync(path.join(outPath, "fm.json"), JSON.stringify(chunkInfos.map(i => [null, i.filePath, i.hash, false, i.modules, null])));
+    }
 }
