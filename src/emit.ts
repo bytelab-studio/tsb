@@ -71,24 +71,26 @@ function createLoader(platform: PlatformPlugin, chunkInfos: ChunkInfo[], embedde
     const statements: ts.Statement[] = [
         generateDataManager(
             platform,
-            ts.factory.createArrayLiteralExpression(
-                chunkInfos.map(info =>
-                    ts.factory.createObjectLiteralExpression(
-                        [
-                            factory.createPropertyAssignment("filePath", ts.factory.createStringLiteral(info.filePath)),
-                            factory.createPropertyAssignment("hash", ts.factory.createStringLiteral(info.hash)),
-                            factory.createPropertyAssignment("loaded", ts.factory.createFalse()),
-                            factory.createPropertyAssignment(
-                                "modules",
-                                ts.factory.createArrayLiteralExpression(
-                                    info.modules.map(module => ts.factory.createStringLiteral(module))
-                                )
-                            ),
-                            factory.createPropertyAssignment("holder", ts.factory.createNull())
-                        ]
+            embeddedFileMap ?
+                ts.factory.createArrayLiteralExpression(
+                    chunkInfos.map(info =>
+                        ts.factory.createObjectLiteralExpression(
+                            [
+                                factory.createPropertyAssignment("filePath", ts.factory.createStringLiteral(info.filePath)),
+                                factory.createPropertyAssignment("hash", ts.factory.createStringLiteral(info.hash)),
+                                factory.createPropertyAssignment("loaded", ts.factory.createFalse()),
+                                factory.createPropertyAssignment(
+                                    "modules",
+                                    ts.factory.createArrayLiteralExpression(
+                                        info.modules.map(module => ts.factory.createStringLiteral(module))
+                                    )
+                                ),
+                                factory.createPropertyAssignment("holder", ts.factory.createNull())
+                            ]
+                        )
                     )
-                )
-            )
+                ) :
+                undefined
         ),
         generateAppDomain(platform),
         generateTSBModule(),
