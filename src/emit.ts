@@ -67,7 +67,7 @@ function chunkModules(modules: ts.SourceFile[], chunkSize: number): ts.SourceFil
 }
 
 
-function createLoader(platform: PlatformPlugin, chunkInfos: ChunkInfo[], entryHash?: string): ts.SourceFile {
+function createLoader(platform: PlatformPlugin, chunkInfos: ChunkInfo[], embeddedFileMap: boolean, entryHash?: string): ts.SourceFile {
     const statements: ts.Statement[] = [
         generateDataManager(
             platform,
@@ -143,6 +143,7 @@ export function emitModule(
     outPath: string,
     moduleName: string,
     chunkSize: number,
+    embeddedFileMap: boolean,
     entryHash?: string
 ): void {
     checkDirs(outPath);
@@ -160,5 +161,10 @@ export function emitModule(
 
         writeSourceFile(chunkSource, path.join(outPath, "chunks"), hash, transformPlugins);
     });
-    writeSourceFile(createLoader(platform, chunkInfos, entryHash), outPath, moduleName, transformPlugins);
+
+    writeSourceFile(createLoader(platform, chunkInfos, embeddedFileMap, entryHash), outPath, moduleName, transformPlugins);
+
+    if (embeddedFileMap) {
+        // Write file map
+    }
 }
