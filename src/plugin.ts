@@ -25,9 +25,11 @@ class BasePlugin {
 }
 
 export abstract class PlatformPlugin extends BasePlugin {
-
-
     public abstract generateChunkLoader(): ts.MethodDeclaration;
+
+    public abstract generateFileMapLoader(): ts.MethodDeclaration;
+
+    public abstract generateInitFileMapCall(): ts.CallExpression;
 
     public isFileIncluded(file: string): boolean {
         return false;

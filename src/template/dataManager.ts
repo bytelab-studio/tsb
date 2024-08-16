@@ -55,6 +55,7 @@ export function generateDataManager(platform: PlatformPlugin, chunkMap?: ts.Arra
             ...generateLoadMethods(),
 
             platform.generateChunkLoader(),
+            platform.generateFileMapLoader(),
             ts.factory.createMethodDeclaration(
                 [ts.factory.createToken(ts.SyntaxKind.PublicKeyword)],
                 undefined,

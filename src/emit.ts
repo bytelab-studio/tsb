@@ -96,6 +96,15 @@ function createLoader(platform: PlatformPlugin, chunkInfos: ChunkInfo[], embedde
         generateTSBModule(),
         ...platform.generateCustomLoaderProperties()
     ];
+
+    if (!embeddedFileMap) {
+        statements.push(
+            ts.factory.createExpressionStatement(
+                platform.generateInitFileMapCall()
+            )
+        )
+    }
+
     if (entryHash) {
         statements.push(ts.factory.createExpressionStatement(
             ts.factory.createCallExpression(
