@@ -27,22 +27,25 @@ export function generateChunkLoader(): ts.MethodDeclaration {
             [factory.createKeywordTypeNode(ts.SyntaxKind.VoidKeyword)]
         ),
         factory.createBlock(
-            [factory.createExpressionStatement(factory.createCallExpression(
-                factory.createIdentifier("require"),
-                undefined,
-                [factory.createBinaryExpression(
-                    factory.createBinaryExpression(
-                        factory.createIdentifier("__dirname"),
-                        factory.createToken(ts.SyntaxKind.PlusToken),
-                        factory.createStringLiteral("/")
-                    ),
-                    factory.createToken(ts.SyntaxKind.PlusToken),
-                    factory.createPropertyAccessExpression(
-                        factory.createIdentifier("chunk"),
-                        factory.createIdentifier("filePath")
+            [
+                factory.createExpressionStatement(
+                    factory.createCallExpression(
+                        factory.createIdentifier("require"),
+                        undefined,
+                        [factory.createBinaryExpression(
+                            factory.createElementAccessExpression(
+                                factory.createIdentifier("chunk"),
+                                factory.createNumericLiteral("0")
+                            ),
+                            factory.createToken(ts.SyntaxKind.PlusToken),
+                            factory.createElementAccessExpression(
+                                factory.createIdentifier("chunk"),
+                                factory.createNumericLiteral("1")
+                            )
+                        )]
                     )
-                )]
-            ))],
+                )
+            ],
             true
         )
     );
