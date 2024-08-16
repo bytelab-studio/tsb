@@ -304,7 +304,7 @@ function generateGetChunkMethods(): ts.ClassElement[] {
                                     ts.factory.createBinaryExpression(
                                         ts.factory.createElementAccessExpression(
                                             ts.factory.createIdentifier("c"),
-                                            ts.factory.createNumericLiteral("1")
+                                            ts.factory.createNumericLiteral("2")
                                         ),
                                         ts.factory.createToken(ts.SyntaxKind.EqualsEqualsToken),
                                         ts.factory.createIdentifier("hash")
