@@ -440,19 +440,21 @@ function generateLoadMethods(): ts.ClassElement[] {
                         undefined
                     ),
                     ts.factory.createReturnStatement(
-                        ts.factory.createCallExpression(
-                            ts.factory.createPropertyAccessExpression(
-                                ts.factory.createElementAccessExpression(
-                                    ts.factory.createIdentifier("info"),
-                                    ts.factory.createNumericLiteral("5")
+                        ts.factory.createAwaitExpression(
+                            ts.factory.createCallExpression(
+                                ts.factory.createPropertyAccessExpression(
+                                    ts.factory.createElementAccessExpression(
+                                        ts.factory.createIdentifier("info"),
+                                        ts.factory.createNumericLiteral("5")
+                                    ),
+                                    ts.factory.createIdentifier("loadModule")
                                 ),
-                                ts.factory.createIdentifier("loadModule")
-                            ),
-                            undefined,
-                            [
-                                ts.factory.createIdentifier("module"),
-                                ts.factory.createIdentifier("AppDomain")
-                            ]
+                                undefined,
+                                [
+                                    ts.factory.createIdentifier("module"),
+                                    ts.factory.createIdentifier("AppDomain")
+                                ]
+                            )
                         )
                     )
                 ],

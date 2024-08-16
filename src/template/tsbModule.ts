@@ -130,7 +130,7 @@ export function generateTSBModule(): ts.ClassDeclaration {
                 )
             ),
             factory.createMethodDeclaration(
-                [factory.createToken(ts.SyntaxKind.PublicKeyword)],
+                [factory.createToken(ts.SyntaxKind.PublicKeyword), factory.createToken(ts.SyntaxKind.AsyncKeyword)],
                 undefined,
                 factory.createIdentifier("loadModule"),
                 undefined,
@@ -233,14 +233,18 @@ export function generateTSBModule(): ts.ClassDeclaration {
                                 ts.NodeFlags.Const
                             )
                         ),
-                        factory.createExpressionStatement(factory.createCallExpression(
-                            factory.createIdentifier("cb"),
-                            undefined,
-                            [
-                                factory.createIdentifier("exports"),
-                                factory.createIdentifier("AppDomain")
-                            ]
-                        )),
+                        factory.createExpressionStatement(
+                            factory.createAwaitExpression(
+                                factory.createCallExpression(
+                                    factory.createIdentifier("cb"),
+                                    undefined,
+                                    [
+                                        factory.createIdentifier("exports"),
+                                        factory.createIdentifier("AppDomain")
+                                    ]
+                                )
+                            )
+                        ),
                         factory.createReturnStatement(factory.createIdentifier("exports"))
                     ],
                     true
