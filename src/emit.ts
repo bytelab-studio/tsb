@@ -1,5 +1,4 @@
 import * as ts from "typescript";
-import {factory, ModuleKind, ScriptTarget} from "typescript";
 import * as fs from "fs";
 import * as path from "path";
 import * as fnv from "fnv-plus";
@@ -74,21 +73,22 @@ function createLoader(platform: PlatformPlugin, chunkInfos: ChunkInfo[], embedde
             embeddedFileMap ?
                 ts.factory.createArrayLiteralExpression(
                     chunkInfos.map(info =>
-                        ts.factory.createObjectLiteralExpression(
+                        ts.factory.createArrayLiteralExpression(
                             [
-                                factory.createPropertyAssignment("filePath", ts.factory.createStringLiteral(info.filePath)),
-                                factory.createPropertyAssignment("hash", ts.factory.createStringLiteral(info.hash)),
-                                factory.createPropertyAssignment("loaded", ts.factory.createFalse()),
-                                factory.createPropertyAssignment(
-                                    "modules",
-                                    ts.factory.createArrayLiteralExpression(
-                                        info.modules.map(module => ts.factory.createStringLiteral(module))
+                                ts.factory.createStringLiteral("."),
+                                ts.factory.createStringLiteral(info.filePath),
+                                ts.factory.createStringLiteral(info.hash),
+                                ts.factory.createFalse(),
+                                ts.factory.createArrayLiteralExpression(
+                                    info.modules.map(m => ts.factory.createArrayLiteralExpression([
+                                            ts.factory.createStringLiteral(m),
+                                            ts.factory.createNull() // TODO emit res path
+                                        ])
                                     )
                                 ),
-                                factory.createPropertyAssignment("holder", ts.factory.createNull())
+                                ts.factory.createNull()
                             ]
-                        )
-                    )
+                        ))
                 ) :
                 undefined
         ),
@@ -96,7 +96,6 @@ function createLoader(platform: PlatformPlugin, chunkInfos: ChunkInfo[], embedde
         generateTSBModule(),
         ...platform.generateCustomLoaderProperties()
     ];
-
     if (entryHash) {
         statements.push(ts.factory.createExpressionStatement(
             ts.factory.createCallExpression(
@@ -119,7 +118,6 @@ function createLoader(platform: PlatformPlugin, chunkInfos: ChunkInfo[], embedde
         ts.factory.createToken(ts.SyntaxKind.EndOfFileToken),
         0
     );
-
 }
 
 function writeSourceFile(file: ts.SourceFile, outPath: string, name: string, transformPlugins: TransformPlugin[]): void {
@@ -128,8 +126,8 @@ function writeSourceFile(file: ts.SourceFile, outPath: string, name: string, tra
     });
     const code: string = printer.printFile(file);
     let result: string = ts.transpile(code, {
-        module: ModuleKind.CommonJS,
-        target: ScriptTarget.ES2023,
+        module: ts.ModuleKind.CommonJS,
+        target: ts.ScriptTarget.ES2023,
         esModuleInterop: true,
         alwaysStrict: true
     });
@@ -156,7 +154,7 @@ export function emitModule(
         const hash: string = fnv.hash(path.join(outPath, "chunks", "chunk" + index)).str();
         let chunkSource: ts.SourceFile = createChunk(platform, hash, chunk);
         chunkInfos.push({
-            filePath: `./chunks/${hash}.js`,
+            filePath: `/chunks/${hash}.js`,
             hash: hash,
             modules: project.map.filter(e => parts.map(f => f.fileName).includes(e.file)).map(e => e.hash)
         });
@@ -166,7 +164,7 @@ export function emitModule(
 
     writeSourceFile(createLoader(platform, chunkInfos, embeddedFileMap, entryHash), outPath, moduleName, transformPlugins);
 
-    if (embeddedFileMap) {
-        // Write file map
+    if (!embeddedFileMap) {
+        fs.writeFileSync(path.join(outPath, "fm.json"), JSON.stringify(chunkInfos.map(i => [null, i.filePath, i.hash, false, i.modules.map(m => [m, null /* TODO emit res path */]), null])));
     }
 }

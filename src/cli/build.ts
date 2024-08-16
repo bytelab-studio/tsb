@@ -120,7 +120,7 @@ export default function build(args: string[]): void {
         }
     });
 
-    const allDiagnostics: readonly ts.Diagnostic[] = ts.getPreEmitDiagnostics(program).concat(program.emit(undefined, fileName => 0).diagnostics);
+    const allDiagnostics: readonly ts.Diagnostic[] = ts.getPreEmitDiagnostics(program).concat(program.emit(undefined, fileName => void 0).diagnostics);
     if (allDiagnostics.length != 0) {
         allDiagnostics.forEach(diagnostic => {
             if (diagnostic.file) {
