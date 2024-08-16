@@ -24,6 +24,32 @@ function checkDirs(outPath: string): void {
     }
 }
 
+function chainCalls(calls: ts.CallExpression[]): ts.CallExpression {
+    let chain: ts.CallExpression = calls[0];
+
+    for (let i: number = 1; i < calls.length; i++) {
+        chain = ts.factory.createCallExpression(
+            ts.factory.createPropertyAccessExpression(
+                chain,
+                ts.factory.createIdentifier("then")
+            ),
+            undefined,
+            [
+                ts.factory.createArrowFunction(
+                    undefined,
+                    undefined,
+                    [],
+                    undefined,
+                    ts.factory.createToken(ts.SyntaxKind.EqualsGreaterThanToken),
+                    calls[i]
+                )
+            ]
+        )
+    }
+
+    return chain;
+}
+
 function createChunk(platform: PlatformPlugin, hash: string, parts: ts.SourceFile[]): ts.SourceFile {
     return ts.factory.updateSourceFile(parts[0], [
         ts.factory.createBlock(
@@ -97,29 +123,31 @@ function createLoader(platform: PlatformPlugin, chunkInfos: ChunkInfo[], embedde
         ...platform.generateCustomLoaderProperties()
     ];
 
+    const callChain: ts.CallExpression[] = [];
+
     if (!embeddedFileMap) {
-        statements.push(
-            ts.factory.createExpressionStatement(
-                platform.generateInitFileMapCall()
-            )
-        )
+        callChain.push(platform.generateInitFileMapCall());
     }
 
     if (entryHash) {
-        statements.push(ts.factory.createExpressionStatement(
-            ts.factory.createCallExpression(
+        callChain.push(ts.factory.createCallExpression(
+            ts.factory.createPropertyAccessExpression(
                 ts.factory.createPropertyAccessExpression(
-                    ts.factory.createPropertyAccessExpression(
-                        ts.factory.createIdentifier("AppDomain"),
-                        ts.factory.createIdentifier("primaryDomain")
-                    ),
-                    ts.factory.createIdentifier("resolve")
+                    ts.factory.createIdentifier("AppDomain"),
+                    ts.factory.createIdentifier("primaryDomain")
                 ),
-                undefined,
-                [
-                    ts.factory.createStringLiteral(entryHash)
-                ]
-            )
+                ts.factory.createIdentifier("resolve")
+            ),
+            undefined,
+            [
+                ts.factory.createStringLiteral(entryHash)
+            ]
+        ));
+    }
+
+    if (callChain.length > 0) {
+        statements.push(ts.factory.createExpressionStatement(
+            chainCalls(callChain)
         ));
     }
 
@@ -177,3 +205,5 @@ export function emitModule(
         fs.writeFileSync(path.join(outPath, "fm.json"), JSON.stringify(chunkInfos.map(i => [null, i.filePath, i.hash, false, i.modules.map(m => [m, null /* TODO emit res path */]), null])));
     }
 }
+
+let a = "Adjust platform plugin";
