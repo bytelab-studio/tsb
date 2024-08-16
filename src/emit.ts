@@ -10,7 +10,7 @@ import {throwError} from "./error";
 export interface ChunkInfo {
     filePath: string;
     hash: string;
-    modules: string[];
+    modules: [string, string][];
 }
 
 function checkDirs(outPath: string): void {
@@ -107,8 +107,8 @@ function createLoader(platform: PlatformPlugin, chunkInfos: ChunkInfo[], embedde
                                 ts.factory.createFalse(),
                                 ts.factory.createArrayLiteralExpression(
                                     info.modules.map(m => ts.factory.createArrayLiteralExpression([
-                                            ts.factory.createStringLiteral(m),
-                                            ts.factory.createNull() // TODO emit res path
+                                            ts.factory.createStringLiteral(m[0]),
+                                            ts.factory.createStringLiteral(m[1])
                                         ])
                                     )
                                 ),
@@ -193,7 +193,7 @@ export function emitModule(
         chunkInfos.push({
             filePath: `/chunks/${hash}.js`,
             hash: hash,
-            modules: project.map.filter(e => parts.map(f => f.fileName).includes(e.file)).map(e => e.hash)
+            modules: project.map.filter(e => parts.map(f => f.fileName).includes(e.file)).map(e => [e.hash, e.resource])
         });
 
         writeSourceFile(chunkSource, path.join(outPath, "chunks"), hash, transformPlugins);
@@ -202,8 +202,6 @@ export function emitModule(
     writeSourceFile(createLoader(platform, chunkInfos, embeddedFileMap, entryHash), outPath, moduleName, transformPlugins);
 
     if (!embeddedFileMap) {
-        fs.writeFileSync(path.join(outPath, "fm.json"), JSON.stringify(chunkInfos.map(i => [null, i.filePath, i.hash, false, i.modules.map(m => [m, null /* TODO emit res path */]), null])));
+        fs.writeFileSync(path.join(outPath, "fm.json"), JSON.stringify(chunkInfos.map(i => [null, i.filePath, i.hash, false, i.modules, null])));
     }
 }
-
-let a = "Adjust platform plugin";
