@@ -227,6 +227,45 @@ export function generateAppDomain(platform: PlatformPlugin): ts.ClassDeclaration
             factory.createMethodDeclaration(
                 [
                     factory.createToken(ts.SyntaxKind.PublicKeyword),
+                    factory.createToken(ts.SyntaxKind.AsyncKeyword)
+                ],
+                undefined,
+                factory.createIdentifier("loadBundle"),
+                undefined,
+                undefined,
+                [factory.createParameterDeclaration(
+                    undefined,
+                    undefined,
+                    factory.createIdentifier("path"),
+                    undefined,
+                    undefined,
+                    undefined
+                )],
+                undefined,
+                factory.createBlock(
+                    [
+                        factory.createExpressionStatement(
+                            factory.createAwaitExpression(
+                                factory.createCallExpression(
+                                    factory.createPropertyAccessExpression(
+                                        factory.createPropertyAccessExpression(
+                                            factory.createIdentifier("AppDomain"),
+                                            factory.createIdentifier("dataManager")
+                                        ),
+                                        factory.createIdentifier("loadBundle")
+                                    ),
+                                    undefined,
+                                    [factory.createIdentifier("path")]
+                                )
+                            )
+                        )
+                    ],
+                    true
+                )
+            ),
+            factory.createMethodDeclaration(
+                [
+                    factory.createToken(ts.SyntaxKind.PublicKeyword),
                     factory.createToken(ts.SyntaxKind.StaticKeyword)
                 ],
                 undefined,
