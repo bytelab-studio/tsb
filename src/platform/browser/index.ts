@@ -56,5 +56,4 @@ export class BrowserPlatform extends PlatformPlugin {
             ]
         )
     }
-
 }
