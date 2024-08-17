@@ -158,12 +158,18 @@ res://<module>/path/to/file.ts
 Currently, there is no way to include NodeJS modules directly in the bundled files. However, loading of NodeJS modules
 is supported on the NodeJS platform, and context switching with AppDomains across NodeJS modules is also supported.
 
-## Roadmap v3.1.0
+## Roadmap
 
 Nothing in this roadmap is a promise. Everything in this roadmap is changeable.
+
+### Planned
+
+- [ ] Some sort of library system using NPM to install bundled libraries
+
+### v3.1.0
 
 - [x] Multi-platform support
 - [x] Macro-Plugin
 - [x] Enable loading chunks that are not directly integrated
-- [ ] Enable loading files via resource path
-- [ ] Some sort of library system using NPM to install bundled libraries
+- [x] Enable loading files via resource path
+
