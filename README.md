@@ -129,30 +129,6 @@ node ./out/<module>.js
 
 Now your project is set up, configured, and ready to run using `tsb`.
 
-## Technical
-
-### Bundle structure
-
-<img src="./img/System.png">
-
-Each file/chunk is syntactically standalone and can be copied across projects. These chunks contain one or more modules.
-Before a module can be loaded into an AppDomain, these chunks must be loaded by the DataManager. The loading process
-depends on the bundling platform specified in the config or CLI flag.
-
-During bundling, the DataManager gets an embedded file map, which means it can only load chunks and modules listed in
-this file map. The user/programmer interacts only with the AppDomain. An AppDomain represents the context of modules.
-When a module is loaded into two different AppDomains, it is executed twice because it is cached only in the first
-AppDomain on the first load. Every program has at least one AppDomain, usually the primaryDomain.
-
-### Module hashing
-
-Each module is represented by a hash generated using the FNV-1a hashing algorithm based on the resource path of the
-file:
-
-```text
-res://<module>/path/to/file.ts
-```
-
 ### NodeJS Modules
 
 Currently, there is no way to include NodeJS modules directly in the bundled files. However, loading of NodeJS modules
