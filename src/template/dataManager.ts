@@ -52,6 +52,7 @@ export function generateDataManager(platform: PlatformPlugin, chunkMap?: ts.Arra
         [
             ...generateFields(chunkMap),
             ...generateGetChunkMethods(),
+            ...generateGetHashMethods(),
             ...generateLoadMethods(),
 
             platform.generateChunkLoader(),
@@ -343,6 +344,164 @@ function generateGetChunkMethods(): ts.ClassElement[] {
             ])
         )
     ];
+}
+
+
+function generateGetHashMethods(): ts.ClassElement[] {
+    return [
+        ts.factory.createMethodDeclaration(
+            [ts.factory.createToken(ts.SyntaxKind.PrivateKeyword)],
+            undefined,
+            "getHashFromPath",
+            undefined,
+            undefined,
+            [
+                ts.factory.createParameterDeclaration(
+                    undefined,
+                    undefined,
+                    "path",
+                    undefined,
+                    ts.factory.createKeywordTypeNode(ts.SyntaxKind.StringKeyword),
+                    undefined
+                )
+            ],
+            ts.factory.createKeywordTypeNode(ts.SyntaxKind.AnyKeyword),
+            ts.factory.createBlock([
+                ts.factory.createVariableStatement(
+                    undefined,
+                    [
+                        ts.factory.createVariableDeclaration(
+                            "info",
+                            undefined,
+                            ts.factory.createKeywordTypeNode(ts.SyntaxKind.AnyKeyword),
+                            ts.factory.createCallExpression(
+                                ts.factory.createPropertyAccessExpression(
+                                    ts.factory.createPropertyAccessExpression(
+                                        ts.factory.createThis(),
+                                        ts.factory.createIdentifier("chunks")
+                                    ),
+                                    ts.factory.createIdentifier("find")
+                                ),
+                                undefined,
+                                [ts.factory.createArrowFunction(
+                                    undefined,
+                                    undefined,
+                                    [ts.factory.createParameterDeclaration(
+                                        undefined,
+                                        undefined,
+                                        ts.factory.createIdentifier("c"),
+                                        undefined,
+                                        undefined,
+                                        undefined
+                                    )],
+                                    undefined,
+                                    ts.factory.createToken(ts.SyntaxKind.EqualsGreaterThanToken),
+                                    ts.factory.createCallExpression(
+                                        ts.factory.createPropertyAccessExpression(
+                                            ts.factory.createCallExpression(
+                                                ts.factory.createPropertyAccessExpression(
+                                                    ts.factory.createElementAccessExpression(
+                                                        ts.factory.createIdentifier("c"),
+                                                        ts.factory.createNumericLiteral("4")
+                                                    ),
+                                                    ts.factory.createIdentifier("map")
+                                                ),
+                                                undefined,
+                                                [ts.factory.createArrowFunction(
+                                                    undefined,
+                                                    undefined,
+                                                    [ts.factory.createParameterDeclaration(
+                                                        undefined,
+                                                        undefined,
+                                                        ts.factory.createIdentifier("l"),
+                                                        undefined,
+                                                        undefined,
+                                                        undefined
+                                                    )],
+                                                    undefined,
+                                                    ts.factory.createToken(ts.SyntaxKind.EqualsGreaterThanToken),
+                                                    ts.factory.createElementAccessExpression(
+                                                        ts.factory.createIdentifier("l"),
+                                                        ts.factory.createNumericLiteral("1")
+                                                    )
+                                                )]
+                                            ),
+                                            ts.factory.createIdentifier("includes")
+                                        ),
+                                        undefined,
+                                        [ts.factory.createIdentifier("path")]
+                                    )
+                                )]
+                            )
+                        )
+                    ]
+                ),
+                ts.factory.createIfStatement(
+                    ts.factory.createPrefixUnaryExpression(
+                        ts.SyntaxKind.ExclamationToken,
+                        ts.factory.createIdentifier("info")
+                    ),
+                    ts.factory.createBlock([
+                        ts.factory.createThrowStatement(ts.factory.createTemplateExpression(
+                            ts.factory.createTemplateHead(
+                                "Module '",
+                                "Module '"
+                            ),
+                            [
+                                ts.factory.createTemplateSpan(
+                                    ts.factory.createIdentifier("path"),
+                                    ts.factory.createTemplateTail(
+                                        "' is not registered in a chunk",
+                                        "' is not registered in a chunk"
+                                    )
+                                )
+                            ]
+                        ))
+                    ])
+                ),
+                ts.factory.createReturnStatement(
+                    ts.factory.createElementAccessExpression(
+                        ts.factory.createCallExpression(
+                            ts.factory.createPropertyAccessExpression(
+                                ts.factory.createElementAccessExpression(
+                                    ts.factory.createIdentifier("info"),
+                                    ts.factory.createNumericLiteral("4")
+                                ),
+                                ts.factory.createIdentifier("find")
+                            ),
+                            undefined,
+                            [
+                                ts.factory.createArrowFunction(
+                                    undefined,
+                                    undefined,
+                                    [
+                                        ts.factory.createParameterDeclaration(
+                                            undefined,
+                                            undefined,
+                                            "m",
+                                            undefined,
+                                            undefined,
+                                        )
+                                    ],
+                                    undefined,
+                                    ts.factory.createToken(ts.SyntaxKind.EqualsGreaterThanToken),
+                                    ts.factory.createBinaryExpression(
+                                        ts.factory.createElementAccessExpression(
+                                            ts.factory.createIdentifier("m"),
+                                            ts.factory.createNumericLiteral("1")
+                                        ),
+                                        ts.SyntaxKind.EqualsEqualsToken,
+                                        ts.factory.createIdentifier("path")
+                                    )
+                                )
+                            ]
+                        ),
+                        ts.factory.createNumericLiteral("0")
+                    )
+                )
+            ])
+        )
+    ]
 }
 
 function generateLoadMethods(): ts.ClassElement[] {
