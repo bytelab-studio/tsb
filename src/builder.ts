@@ -41,6 +41,7 @@ class Builder {
     private outputValue: string = "out";
     private filesValue: string[] = [];
     private chunkSizeValue: number | undefined;
+    private embeddedFileMapValue: boolean = false;
     private pluginsValue: string[] = [];
 
     public module(name: string): this {
@@ -97,6 +98,11 @@ class Builder {
         return this;
     }
 
+    public embeddedFileMap(f: boolean): this {
+        this.embeddedFileMapValue = f;
+        return this;
+    }
+
     public plugins(...names: string[]): this {
         this.pluginsValue.push(...names);
         return this;
@@ -115,6 +121,9 @@ class Builder {
         args.push(...this.filesValue);
         if (this.chunkSizeValue) {
             args.push("--chunk-size", this.chunkSizeValue.toString());
+        }
+        if (this.embeddedFileMapValue) {
+            args.push("--embedded-file-map");
         }
         args.push(...this.pluginsValue.map(p => "--plugin-" + p));
 
