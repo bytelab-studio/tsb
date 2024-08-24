@@ -138,7 +138,7 @@ export default function build(args: string[]): void {
     if (!config.paths) {
         config.paths = {};
     }
-    config.paths.tsb = ["node_modules/@bytelab.studio/tsb-runtime/types/index.d.ts"]
+    config.paths.tsb = ["./node_modules/@bytelab.studio/tsb-runtime/types/index.d.ts"]
 
     fs.writeFileSync(path.join(process.cwd(), "tsconfig.json"), JSON.stringify({
         compilerOptions: convertCompilerOptionsToJson(config),

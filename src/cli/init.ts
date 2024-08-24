@@ -48,7 +48,7 @@ export default function init(args: string[]): void {
             strict: true,
             alwaysStrict: true,
             paths: {
-                tsb: ["node_modules/@bytelab.studio/tsb-runtime/types/index.d.ts"],
+                tsb: ["./node_modules/@bytelab.studio/tsb-runtime/types/index.d.ts"],
             }
         },
         include: [
