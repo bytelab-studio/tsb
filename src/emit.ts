@@ -167,6 +167,8 @@ function writeSourceFile(file: ts.SourceFile | string, outPath: string, name: st
     });
     const code: string = typeof file != "string" ? printer.printFile(file) : file;
     let result: string = ts.transpile(code, config);
+    transformPlugins.forEach(plugin => result = plugin.transformJavaScript(result));
+    fs.writeFileSync(path.join(outPath, name + ".js"), result);
 }
 
 export function emitModule(
