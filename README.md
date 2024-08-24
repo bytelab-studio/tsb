@@ -146,12 +146,12 @@ Nothing in this roadmap is a promise. Everything in this roadmap is changeable.
 - [ ] Improve build time by emitting only changed files
 
 ### v3.2.0
+- [x] Allow additional configuration in the tsconfig file
 - [ ] Make config file TypeScript
 - [ ] Better output types: `lib`, `program`
 - [ ] Output declaration files (`.d.ts`)
 - [ ] Reference local project as dependencies
 - [ ] Some sort of library system using NPM to install bundled libraries
-- [ ] Allow additional configuration in the tsconfig file
 
 ### v3.1.0
 
