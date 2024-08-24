@@ -129,10 +129,16 @@ export default function build(args: string[]): void {
     if (!tsconfig.include) {
         tsconfig.include = [];
     }
-
     if (!tsconfig.include.includes("node_modules/@bytelab.studio/tsb-runtime/**/index.d.ts")) {
         tsconfig.include.push("node_modules/@bytelab.studio/tsb-runtime/**/index.d.ts");
     }
+    if (!tsconfig.include.includes("tsb.ts")) {
+        tsconfig.include.push("tsb.ts");
+    }
+    if (!config.paths) {
+        config.paths = {};
+    }
+    config.paths.tsb = ["./node_modules/@bytelab.studio/tsb-runtime/types/index.d.ts"]
 
     fs.writeFileSync(path.join(process.cwd(), "tsconfig.json"), JSON.stringify({
         compilerOptions: convertCompilerOptionsToJson(config),
