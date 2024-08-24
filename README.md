@@ -147,7 +147,7 @@ Nothing in this roadmap is a promise. Everything in this roadmap is changeable.
 
 ### v3.2.0
 - [x] Allow additional configuration in the tsconfig file
-- [ ] Make config file TypeScript
+- [x] Make config file TypeScript
 - [ ] Better output types: `lib`, `program`
 - [ ] Output declaration files (`.d.ts`)
 - [ ] Reference local project as dependencies
