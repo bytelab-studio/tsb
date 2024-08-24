@@ -50,17 +50,21 @@ function chainCalls(calls: ts.CallExpression[]): ts.CallExpression {
     return chain;
 }
 
-function createChunk(platform: PlatformPlugin, hash: string, parts: ts.SourceFile[]): ts.SourceFile {
-    return ts.factory.updateSourceFile(parts[0], [
-        ts.factory.createBlock(
-            [
-                ...platform.generateModuleHeader(),
-                generateModuleConstructor(hash),
-                ...platform.generateModuleAfterLoad(),
-                ...parts.map(part => part.statements.map(s => s)).flat()
-            ]
-        )
-    ]);
+function createChunk(platform: PlatformPlugin, hash: string, parts: ts.SourceFile[]): string {
+    const printer: ts.Printer = ts.createPrinter();
+
+    let str = "";
+
+    str += [
+        ...platform.generateModuleHeader(),
+        generateModuleConstructor(hash),
+        ...platform.generateModuleAfterLoad()
+    ].map(s => printer.printNode(ts.EmitHint.Unspecified, s, parts[0])).join("\n");
+
+    for (let i: number = 0; i < parts.length; i++) {
+        str += parts[i].statements.map(s => printer.printNode(ts.EmitHint.Unspecified, s, parts[i])).join("\n");
+    }
+    return "{" + str + "}";
 }
 
 function chunkModules(modules: ts.SourceFile[], chunkSize: number): ts.SourceFile[][] {
@@ -157,12 +161,12 @@ function createLoader(platform: PlatformPlugin, chunkInfos: ChunkInfo[], embedde
     );
 }
 
-function writeSourceFile(file: ts.SourceFile, outPath: string, name: string, transformPlugins: TransformPlugin[], config: ts.CompilerOptions): void {
-    const printer: ts.Printer = ts.createPrinter();
-    const code: string = printer.printFile(file);
+function writeSourceFile(file: ts.SourceFile | string, outPath: string, name: string, transformPlugins: TransformPlugin[], config: ts.CompilerOptions): void {
+    const printer: ts.Printer = ts.createPrinter({
+        removeComments: true
+    });
+    const code: string = typeof file != "string" ? printer.printFile(file) : file;
     let result: string = ts.transpile(code, config);
-    transformPlugins.forEach(plugin => result = plugin.transformJavaScript(result));
-    fs.writeFileSync(path.join(outPath, name + ".js"), result);
 }
 
 export function emitModule(
@@ -183,7 +187,7 @@ export function emitModule(
 
     chunks.forEach((chunk: ts.SourceFile[], index: number): void => {
         const hash: string = fnv.hash(path.join(outPath, "chunks", "chunk" + index)).str();
-        let chunkSource: ts.SourceFile = createChunk(platform, hash, chunk);
+        let chunkSource: string = createChunk(platform, hash, chunk);
         chunkInfos.push({
             filePath: `/chunks/${hash}.js`,
             hash: hash,
