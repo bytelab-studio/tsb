@@ -40,5 +40,17 @@ export default function init(args: string[]): void {
 
     console.log("> Create config file");
     writeFile("tsb.js", "const {builder} = require(\"tsb\");\n\nbuilder\n    .module(\"my-module\")\n    .addFolders(\"./src\")\n    .output(\"./out\")\n    .platform(\"nodejs\")");
+    writeFile("tsconfig.json", JSON.stringify({
+        compilerOptions: {
+            target: "ES2023",
+            module: "commonjs",
+            forceConsistentCasingInFileNames: true,
+            strict: true,
+            alwaysStrict: true
+        },
+        include: [
+            "node_modules/@bytelab.studio/tsb-runtime/**/index.d.ts"
+        ]
+    }, null, 4));
 
 }
