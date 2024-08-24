@@ -2,6 +2,7 @@ import * as ts from "typescript";
 import {FileMapEntry, Project} from "./loader";
 import * as path from "path";
 import {PlatformPlugin, TransformPlugin} from "./plugin";
+import {visitEachChild} from "typescript";
 
 const META_STATEMENTS: ts.SyntaxKind[] = [ts.SyntaxKind.TypeAliasDeclaration, ts.SyntaxKind.InterfaceDeclaration];
 
@@ -10,7 +11,10 @@ export function transformToModule(sourceFile: ts.SourceFile, info: FileMapEntry,
 
     const visitor: ts.Visitor = <T extends ts.Node>(node: T): T | T[] => {
         if (ts.isStatement(node)) {
-            return transformMember(sourceFile, info, project, node) as unknown as T[];
+            if (node.kind == ts.SyntaxKind.ModuleDeclaration) {
+                node = visitEachChild(node, visitor, undefined);
+            }
+            return transformMember(sourceFile, info, project, node as unknown as ts.Statement) as unknown as T[];
         }
         return ts.visitEachChild(node, visitor, undefined);
     }
@@ -120,6 +124,73 @@ function transformMember(sourceFile: ts.SourceFile, info: FileMapEntry, project:
                 )];
             }
             return [];
+        case ts.SyntaxKind.ModuleDeclaration:
+            const n: ts.ModuleDeclaration = statement as ts.ModuleDeclaration;
+            if (n.modifiers && n.modifiers.map(m => m.kind).includes(ts.SyntaxKind.ExportKeyword)) {
+                return [
+                    ts.factory.createExpressionStatement(
+                        ts.factory.createBinaryExpression(
+                            ts.factory.createPropertyAccessExpression(
+                                ts.factory.createIdentifier("__exports__"),
+                                n.name as ts.Identifier
+                            ),
+                            ts.SyntaxKind.EqualsToken,
+                            ts.factory.createVoidExpression(ts.factory.createNumericLiteral("0"))
+                        )
+                    ),
+                    ts.factory.createVariableStatement(undefined, [
+                        ts.factory.createVariableDeclaration(
+                            n.name as ts.Identifier
+                        )
+                    ]),
+                    ts.factory.createExpressionStatement(
+                        ts.factory.createCallExpression(
+                            ts.factory.createParenthesizedExpression(
+                                ts.factory.createFunctionExpression(
+                                    undefined,
+                                    undefined,
+                                    undefined,
+                                    undefined,
+                                    [
+                                        ts.factory.createParameterDeclaration(
+                                            undefined,
+                                            undefined,
+                                            ts.factory.createIdentifier("__exports__"),
+                                            undefined,
+                                            undefined,
+                                            undefined
+                                        )
+                                    ],
+                                    undefined,
+                                    ts.factory.createBlock((<ts.ModuleBlock>n.body).statements, true)
+                                )
+                            ),
+                            undefined,
+                            [
+                                ts.factory.createBinaryExpression(
+                                    n.name as ts.Identifier,
+                                    ts.SyntaxKind.BarBarToken,
+                                    ts.factory.createParenthesizedExpression(
+                                        ts.factory.createBinaryExpression(
+                                            ts.factory.createPropertyAccessExpression(
+                                                ts.factory.createIdentifier("__exports__"),
+                                                n.name as ts.Identifier
+                                            ),
+                                            ts.SyntaxKind.EqualsToken,
+                                            ts.factory.createBinaryExpression(
+                                                n.name as ts.Identifier,
+                                                ts.SyntaxKind.EqualsToken,
+                                                ts.factory.createObjectLiteralExpression()
+                                            )
+                                        )
+                                    )
+                                )
+                            ]
+                        )
+                    )
+                ]
+            }
+            break;
         case ts.SyntaxKind.EnumDeclaration:
             const e: ts.EnumDeclaration = statement as ts.EnumDeclaration;
             if (e.modifiers && e.modifiers.map(m => m.kind).includes(ts.SyntaxKind.ExportKeyword)) {
