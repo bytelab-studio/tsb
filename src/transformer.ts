@@ -3,6 +3,8 @@ import {FileMapEntry, Project} from "./loader";
 import * as path from "path";
 import {PlatformPlugin, TransformPlugin} from "./plugin";
 
+const META_STATEMENTS: ts.SyntaxKind[] = [ts.SyntaxKind.TypeAliasDeclaration, ts.SyntaxKind.InterfaceDeclaration];
+
 export function transformToModule(sourceFile: ts.SourceFile, info: FileMapEntry, project: Project, platform: PlatformPlugin, transformPlugins: TransformPlugin[]): ts.SourceFile {
     transformPlugins.forEach(plugin => sourceFile = plugin.transformSourceFile(sourceFile));
 
@@ -57,6 +59,10 @@ export function transformToModule(sourceFile: ts.SourceFile, info: FileMapEntry,
 }
 
 function transformMember(sourceFile: ts.SourceFile, info: FileMapEntry, project: Project, statement: ts.Statement): ts.Statement[] {
+    if (META_STATEMENTS.includes(statement.kind)) {
+        return [];
+    }
+
     switch (statement.kind) {
         case ts.SyntaxKind.ImportDeclaration:
             const imp: ts.ImportDeclaration = statement as ts.ImportDeclaration;

@@ -161,19 +161,12 @@ function createLoader(platform: PlatformPlugin, chunkInfos: ChunkInfo[], embedde
     );
 }
 
-function writeSourceFile(file: ts.SourceFile | string, outPath: string, name: string, transformPlugins: TransformPlugin[]): void {
+function writeSourceFile(file: ts.SourceFile | string, outPath: string, name: string, transformPlugins: TransformPlugin[], config: ts.CompilerOptions): void {
     const printer: ts.Printer = ts.createPrinter({
         removeComments: true
     });
     const code: string = typeof file != "string" ? printer.printFile(file) : file;
-    let result: string = ts.transpile(code, {
-        module: ts.ModuleKind.CommonJS,
-        target: ts.ScriptTarget.ES2023,
-        esModuleInterop: true,
-        alwaysStrict: true
-    });
-    transformPlugins.forEach(plugin => result = plugin.transformJavaScript(result));
-    fs.writeFileSync(path.join(outPath, name + ".js"), result);
+    let result: string = ts.transpile(code, config);
 }
 
 export function emitModule(
@@ -181,6 +174,7 @@ export function emitModule(
     parts: ts.SourceFile[],
     platform: PlatformPlugin,
     transformPlugins: TransformPlugin[],
+    config: ts.CompilerOptions,
     outPath: string,
     moduleName: string,
     chunkSize: number,
@@ -200,10 +194,10 @@ export function emitModule(
             modules: project.map.filter(e => parts.map(f => f.fileName).includes(e.file)).map(e => [e.hash, e.resource])
         });
 
-        writeSourceFile(chunkSource, path.join(outPath, "chunks"), hash, transformPlugins);
+        writeSourceFile(chunkSource, path.join(outPath, "chunks"), hash, transformPlugins, config);
     });
 
-    writeSourceFile(createLoader(platform, chunkInfos, embeddedFileMap, entryHash), outPath, moduleName, transformPlugins);
+    writeSourceFile(createLoader(platform, chunkInfos, embeddedFileMap, entryHash), outPath, moduleName, transformPlugins, config);
 
     if (!embeddedFileMap) {
         fs.writeFileSync(path.join(outPath, "fm.json"), JSON.stringify(chunkInfos.map(i => [null, i.filePath, i.hash, false, i.modules, null])));
