@@ -2,9 +2,11 @@ import * as fs from "fs";
 import * as path from "path";
 import {throwError} from "./error";
 import * as vm from "vm";
+import * as ts from "typescript";
+import {ModuleKind} from "typescript";
 
 export function loadBuilderScript(): string[] {
-    const tsbPath: string = path.join(process.cwd(), "tsb.js");
+    const tsbPath: string = path.join(process.cwd(), "tsb.ts");
 
     if (!fs.existsSync(tsbPath) || !fs.statSync(tsbPath).isFile()) {
         throwError(`File '${tsbPath}' does not exist or is not a file`);
@@ -12,6 +14,7 @@ export function loadBuilderScript(): string[] {
     const builder: Builder = new Builder();
 
     const context: vm.Context = vm.createContext({
+        exports: {},
         require: (module: string) => {
             if (module == "tsb") {
                 return {
@@ -23,7 +26,25 @@ export function loadBuilderScript(): string[] {
         }
     });
     try {
-        const script: vm.Script = new vm.Script(fs.readFileSync(tsbPath, "utf8"));
+        const diagnostics: ts.Diagnostic[] = [];
+        const code: string = ts.transpile(fs.readFileSync(tsbPath, "utf8"), {
+            module: ModuleKind.CommonJS
+        }, tsbPath, diagnostics);
+
+        if (diagnostics.length != 0) {
+            diagnostics.forEach(diagnostic => {
+                if (diagnostic.file) {
+                    let {line, character} = ts.getLineAndCharacterOfPosition(diagnostic.file, diagnostic.start!);
+                    let message = ts.flattenDiagnosticMessageText(diagnostic.messageText, "\n");
+                    console.log(`${diagnostic.file.fileName} (${line + 1},${character + 1}): ${message}`);
+                } else {
+                    console.log(ts.flattenDiagnosticMessageText(diagnostic.messageText, "\n"));
+                }
+            });
+            process.exit(1);
+        }
+
+        const script: vm.Script = new vm.Script(code);
         script.runInContext(context);
 
         return builder.toArgs();
