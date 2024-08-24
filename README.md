@@ -140,15 +140,18 @@ Nothing in this roadmap is a promise. Everything in this roadmap is changeable.
 
 ### Planned
 
-- [ ] Some sort of library system using NPM to install bundled libraries
-- [ ] Reference local project as dependencies
 - [ ] External plugin system
-- [ ] Make config file TypeScript
-- [ ] Better output types: `lib`, `program`
 - [ ] Multiple build profiles: `debug`, `release`, `debug-nodejs`
-- [ ] Output declaration (`.d.ts`) files
 - [ ] Include assets: `.html`, `.css` and any other file type
 - [ ] Improve build time by emitting only changed files
+
+### v3.2.0
+- [ ] Make config file TypeScript
+- [ ] Better output types: `lib`, `program`
+- [ ] Output declaration files (`.d.ts`)
+- [ ] Reference local project as dependencies
+- [ ] Some sort of library system using NPM to install bundled libraries
+- [ ] Allow additional configuration in the tsconfig file
 
 ### v3.1.0
 
