@@ -43,6 +43,7 @@ export default function build(args: string[]): void {
     let chunkSize: number = 10_000;
     let useBuilder: boolean = false;
     let embeddedFileMap: boolean = false;
+    let emitDeclarations: boolean = false;
     const transformPlugins: TransformPlugin[] = [];
 
     const options: OptionSet = new OptionSet(
@@ -59,6 +60,7 @@ export default function build(args: string[]): void {
             chunkSize = parseInt(v);
         }],
         ["embedded-file-map", "Includes the file map into the loader", () => embeddedFileMap = true],
+        ["d|declaration", "Emit declaration files", () => emitDeclarations = true],
         ["script", "Use tsb.js definition in the CWD", () => useBuilder = true],
         ["h|help", "Prints this help string", () => requestHelp = true],
         ...TransformPlugin.plugins.map((plugin: TransformPlugin): OptionFlagArgument => ["plugin-" + plugin.flagName, plugin.flagDescription, () => transformPlugins.push(plugin)])
@@ -125,6 +127,9 @@ export default function build(args: string[]): void {
     config.forceConsistentCasingInFileNames = true;
     config.strict = true;
     config.alwaysStrict = true;
+    if (emitDeclarations) {
+        config.declaration = true;
+    }
 
     if (!tsconfig.include) {
         tsconfig.include = [];
@@ -145,6 +150,10 @@ export default function build(args: string[]): void {
         files: moduleFiles.filter(f => !f.startsWith("node_modules")),
         include: tsconfig.include
     }, null, 4));
+
+    if (emitDeclarations) {
+        config.noEmit = false;
+    }
 
     const program: ts.Program = loadProgram(project, config);
     setProgram(program);
@@ -182,6 +191,7 @@ export default function build(args: string[]): void {
         modules[i] = transformToModule(sourceFile, info, project, platform, transformPlugins);
     }
     emitModule(
+        program,
         project,
         modules,
         platform,
@@ -191,6 +201,7 @@ export default function build(args: string[]): void {
         moduleName,
         chunkSize,
         embeddedFileMap,
+        emitDeclarations,
         !!entryFile ? project.map.find(e => e.file == entryFile)!.hash : undefined
     );
 }

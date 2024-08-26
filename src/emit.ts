@@ -6,6 +6,7 @@ import {generateAppDomain, generateDataManager, generateModuleConstructor, gener
 import {Project} from "./loader";
 import {PlatformPlugin, TransformPlugin} from "./plugin";
 import {throwError} from "./error";
+import tryConvertScriptKindName = ts.server.tryConvertScriptKindName;
 
 export interface ChunkInfo {
     filePath: string;
@@ -13,14 +14,17 @@ export interface ChunkInfo {
     modules: [string, string][];
 }
 
-function checkDirs(outPath: string): void {
+function checkDirs(outPath: string, emitDeclaration: boolean): void {
     if (!fs.existsSync(outPath) || !fs.statSync(outPath).isDirectory()) {
         throwError("Out path does not exist or is not a directory");
     }
 
-
     if (!fs.existsSync(path.join(outPath, "chunks")) || !fs.statSync(path.join(outPath, "chunks")).isDirectory()) {
         fs.mkdirSync(path.join(outPath, "chunks"));
+    }
+
+    if (emitDeclaration && !fs.existsSync(path.join(outPath, "types")) || !fs.statSync(path.join(outPath, "types")).isDirectory()) {
+        fs.mkdirSync(path.join(outPath, "types"));
     }
 }
 
@@ -172,6 +176,7 @@ function writeSourceFile(file: ts.SourceFile | string, outPath: string, name: st
 }
 
 export function emitModule(
+    program: ts.Program,
     project: Project,
     parts: ts.SourceFile[],
     platform: PlatformPlugin,
@@ -181,12 +186,12 @@ export function emitModule(
     moduleName: string,
     chunkSize: number,
     embeddedFileMap: boolean,
+    emitDeclaration: boolean,
     entryHash?: string
 ): void {
-    checkDirs(outPath);
+    checkDirs(outPath, emitDeclaration);
     const chunks: ts.SourceFile[][] = chunkModules(parts, chunkSize);
     const chunkInfos: ChunkInfo[] = [];
-
     chunks.forEach((chunk: ts.SourceFile[], index: number): void => {
         const hash: string = fnv.hash(path.join(outPath, "chunks", "chunk" + index)).str();
         let chunkSource: string = createChunk(platform, hash, chunk);
@@ -203,5 +208,23 @@ export function emitModule(
 
     if (!embeddedFileMap) {
         fs.writeFileSync(path.join(outPath, "fm.json"), JSON.stringify(chunkInfos.map(i => [null, i.filePath, i.hash, false, i.modules, null])));
+    }
+    if (emitDeclaration) {
+        project.map.forEach(f => {
+            const sourceFile: ts.SourceFile = program.getSourceFile(f.file)!;
+            const text: string = ts.transpileDeclaration(sourceFile.getText(), {
+                fileName: sourceFile.fileName,
+                moduleName: sourceFile.moduleName,
+                compilerOptions: config
+            }).outputText;
+            const filePath: string = path.join(outPath, "types", f.resource.substring(6 + moduleName.length, f.resource.length - 3)) + ".d.ts";
+            const fileDir: string = path.dirname(filePath);
+
+            if (!fs.existsSync(fileDir) || !fs.statSync(fileDir).isDirectory()) {
+                fs.mkdirSync(fileDir, {recursive: true});
+            }
+
+            fs.writeFileSync(filePath, text);
+        });
     }
 }
