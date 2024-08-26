@@ -1,20 +1,20 @@
 import * as ts from "typescript";
-import {FileMapEntry, Project} from "./loader";
+import {BuildConfig, FileMapEntry, Project} from "./loader";
 import * as path from "path";
 import {PlatformPlugin, TransformPlugin} from "./plugin";
 import {visitEachChild} from "typescript";
 
 const META_STATEMENTS: ts.SyntaxKind[] = [ts.SyntaxKind.TypeAliasDeclaration, ts.SyntaxKind.InterfaceDeclaration];
 
-export function transformToModule(sourceFile: ts.SourceFile, info: FileMapEntry, project: Project, platform: PlatformPlugin, transformPlugins: TransformPlugin[]): ts.SourceFile {
-    transformPlugins.forEach(plugin => sourceFile = plugin.transformSourceFile(sourceFile));
+export function transformToModule(sourceFile: ts.SourceFile, buildConfig: BuildConfig, info: FileMapEntry): ts.SourceFile {
+    buildConfig.transformPlugins.forEach(plugin => sourceFile = plugin.transformSourceFile(sourceFile));
 
     const visitor: ts.Visitor = <T extends ts.Node>(node: T): T | T[] => {
         if (ts.isStatement(node)) {
             if (node.kind == ts.SyntaxKind.ModuleDeclaration) {
                 node = visitEachChild(node, visitor, undefined);
             }
-            return transformMember(sourceFile, info, project, node as unknown as ts.Statement) as unknown as T[];
+            return transformMember(sourceFile, info, buildConfig.project, node as unknown as ts.Statement) as unknown as T[];
         }
         return ts.visitEachChild(node, visitor, undefined);
     }
@@ -53,7 +53,7 @@ export function transformToModule(sourceFile: ts.SourceFile, info: FileMapEntry,
                         ],
                         undefined,
                         ts.factory.createToken(ts.SyntaxKind.EqualsGreaterThanToken),
-                        ts.factory.createBlock(sourceFile.statements.map(s => transformMember(sourceFile, info, project, platform.transformMember(s))).flat(), true)
+                        ts.factory.createBlock(sourceFile.statements.map(s => transformMember(sourceFile, info, buildConfig.project, buildConfig.platform.transformMember(s))).flat(), true)
                     )
                 ]
             )

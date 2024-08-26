@@ -2,7 +2,7 @@ import * as ts from "typescript";
 import * as path from "path";
 import * as fs from "fs";
 import {OptionFlagArgument, OptionSet} from "@koschel-christoph/node.options";
-import {FileMapEntry, isMetaFile, isSourceFile, loadFiles, loadProgram, Project} from "../loader";
+import {BuildConfig, FileMap, FileMapEntry, isMetaFile, isSourceFile, loadFiles, loadProgram, Project} from "../loader";
 import {transformToModule} from "../transformer";
 import {emitModule} from "../emit";
 import {throwError} from "../error";
@@ -34,80 +34,99 @@ function convertCompilerOptionsToJson(conf: ts.CompilerOptions): any {
 }
 
 export default function build(args: string[]): void {
-    let moduleName: string = "app";
-    const moduleFiles: string[] = [];
-    let platformName: string | undefined;
-    let requestHelp: boolean = false;
-    let entryFile: string | undefined;
-    let outPath: string = "out";
-    let chunkSize: number = 10_000;
-    let useBuilder: boolean = false;
-    let embeddedFileMap: boolean = false;
-    let emitDeclarations: boolean = false;
-    const transformPlugins: TransformPlugin[] = [];
+    const buildConfig: BuildConfig = {
+        moduleName: "app",
+        moduleFiles: [],
+        platformName: "",
+        requestHelp: false,
+        entryFile: undefined,
+        outPath: "out",
+        chunkSize: 10_000,
+        useBuilder: false,
+        embeddedFileMap: false,
+        emitDeclaration: false,
+        transformPlugins: [],
+
+        config: undefined as unknown as ts.CompilerOptions,
+        fileMap: undefined as unknown as FileMap,
+        project: undefined as unknown as Project,
+        program: undefined as unknown as ts.Program,
+        platform: undefined as unknown as PlatformPlugin,
+
+    }
+    // let moduleName: string = "app";
+    // const moduleFiles: string[] = [];
+    // let platformName: string | undefined;
+    // let requestHelp: boolean = false;
+    // let entryFile: string | undefined;
+    // let outPath: string = "out";
+    // let chunkSize: number = 10_000;
+    // let useBuilder: boolean = false;
+    // let embeddedFileMap: boolean = false;
+    // let emitDeclarations: boolean = false;
+    // const transformPlugins: TransformPlugin[] = [];
 
     const options: OptionSet = new OptionSet(
         "Usage: tsb build <files> [options]",
-        ["m=|module=", "The module {name}", v => moduleName = v],
-        ["<>", "The files to be compiled", v => moduleFiles.push(v)],
-        ["p=|platform=", "The target {platform}", v => platformName = v],
-        ["e=|entry=", "The entry {file}", v => entryFile = v],
-        ["o=|output=", "The output {path}", v => outPath = v],
+        ["m=|module=", "The module {name}", v => buildConfig.moduleName = v],
+        ["<>", "The files to be compiled", v => buildConfig.moduleFiles.push(v)],
+        ["p=|platform=", "The target {platform}", v => buildConfig.platformName = v],
+        ["e=|entry=", "The entry {file}", v => buildConfig.entryFile = v],
+        ["o=|output=", "The output {path}", v => buildConfig.outPath = v],
         ["chunk-size=", "Sets the minimal chunk size in {bytes}", v => {
             if (isNaN(parseInt(v))) {
                 return;
             }
-            chunkSize = parseInt(v);
+            buildConfig.chunkSize = parseInt(v);
         }],
-        ["embedded-file-map", "Includes the file map into the loader", () => embeddedFileMap = true],
-        ["d|declaration", "Emit declaration files", () => emitDeclarations = true],
-        ["script", "Use tsb.js definition in the CWD", () => useBuilder = true],
-        ["h|help", "Prints this help string", () => requestHelp = true],
-        ...TransformPlugin.plugins.map((plugin: TransformPlugin): OptionFlagArgument => ["plugin-" + plugin.flagName, plugin.flagDescription, () => transformPlugins.push(plugin)])
+        ["embedded-file-map", "Includes the file map into the loader", () => buildConfig.embeddedFileMap = true],
+        ["d|declaration", "Emit declaration files", () => buildConfig.emitDeclaration = true],
+        ["script", "Use tsb.js definition in the CWD", () => buildConfig.useBuilder = true],
+        ["h|help", "Prints this help string", () => buildConfig.requestHelp = true],
+        ...TransformPlugin.plugins.map((plugin: TransformPlugin): OptionFlagArgument => ["plugin-" + plugin.flagName, plugin.flagDescription, () => buildConfig.transformPlugins.push(plugin)])
     )
 
     options.parse(args, false);
-    if (requestHelp) {
+    if (buildConfig.requestHelp) {
         options.printHelpString(process.stdout);
         return;
     }
-    if (useBuilder) {
+    if (buildConfig.useBuilder) {
         build(loadBuilderScript());
         return;
     }
-    if (!platformName) {
+    if (buildConfig.platformName != "") {
         console.log("Missing platform flag\n");
         options.printHelpString(process.stdout);
         return;
     }
 
-    if (moduleFiles.length == 0) {
+    if (buildConfig.moduleFiles.length == 0) {
         console.log("Needs at least one source file\n");
         options.printHelpString(process.stdout);
         return;
     }
 
-    if (!Object.keys(Platform).includes(platformName)) {
-        throwError(`Unknown platform '${platformName}' available are ${Object.keys(Platform).map(k => `'${k}'`).join(", ")}`);
+    if (!Object.keys(Platform).includes(buildConfig.platformName)) {
+        throwError(`Unknown platform '${buildConfig.platformName}' available are ${Object.keys(Platform).map(k => `'${k}'`).join(", ")}`);
     }
 
-    if (entryFile) {
-        if (!fs.existsSync(entryFile) || !fs.statSync(entryFile).isFile()) {
-            throwError(`File '${entryFile}' does not exist or is not a file`);
+    if (buildConfig.entryFile) {
+        if (!fs.existsSync(buildConfig.entryFile) || !fs.statSync(buildConfig.entryFile).isFile()) {
+            throwError(`File '${buildConfig.entryFile}' does not exist or is not a file`);
         }
-        entryFile = path.posix.join(process.cwd().replace(/\\/gi, "/"), entryFile);
+        buildConfig.entryFile = path.posix.join(process.cwd().replace(/\\/gi, "/"), buildConfig.entryFile);
     }
 
-    const platform: PlatformPlugin = (Platform as any)[platformName] as PlatformPlugin;
+    buildConfig.platform = (Platform as any)[buildConfig.platformName] as PlatformPlugin
+    buildConfig.project = loadFiles([...buildConfig.platform.getIncludeFiles(), ...buildConfig.moduleFiles], buildConfig.moduleName);
+    setProject(buildConfig.project);
 
-    const project: Project = loadFiles([...platform.getIncludeFiles(), ...moduleFiles], moduleName);
-    setProject(project);
-
-    if (entryFile && !project.map.find(e => e.file == entryFile)) {
+    if (buildConfig.entryFile && !buildConfig.project.map.find(e => e.file == buildConfig.entryFile)) {
         throwError("Entry file is not included in the bundle");
     }
     const tsconfig: any = JSON.parse(fs.readFileSync(path.join(process.cwd(), "tsconfig.json"), "utf8"));
-    const config: ts.CompilerOptions = ts.parseJsonConfigFileContent(tsconfig, {
+    buildConfig.config = ts.parseJsonConfigFileContent(tsconfig, {
         useCaseSensitiveFileNames: true,
         fileExists(path: string): boolean {
             return fs.existsSync(path) && fs.statSync(path).isFile();
@@ -123,12 +142,13 @@ export default function build(args: string[]): void {
 
     }, process.cwd()).options;
 
-    config.module = ts.ModuleKind.CommonJS;
-    config.forceConsistentCasingInFileNames = true;
-    config.strict = true;
-    config.alwaysStrict = true;
-    if (emitDeclarations) {
-        config.declaration = true;
+    buildConfig.config.module = ts.ModuleKind.CommonJS;
+    buildConfig.config.forceConsistentCasingInFileNames = true;
+    buildConfig.config.strict = true;
+    buildConfig.config.alwaysStrict = true;
+    buildConfig.config.noEmit = true;
+    if (buildConfig.emitDeclaration) {
+        buildConfig.config.declaration = true;
     }
 
     if (!tsconfig.include) {
@@ -140,37 +160,37 @@ export default function build(args: string[]): void {
     if (!tsconfig.include.includes("tsb.ts")) {
         tsconfig.include.push("tsb.ts");
     }
-    if (!config.paths) {
-        config.paths = {};
+    if (!buildConfig.config.paths) {
+        buildConfig.config.paths = {};
     }
-    config.paths.tsb = ["./node_modules/@bytelab.studio/tsb-runtime/types/index.d.ts"]
+    buildConfig.config.paths.tsb = ["./node_modules/@bytelab.studio/tsb-runtime/types/index.d.ts"]
 
     fs.writeFileSync(path.join(process.cwd(), "tsconfig.json"), JSON.stringify({
-        compilerOptions: convertCompilerOptionsToJson(config),
-        files: moduleFiles.filter(f => !f.startsWith("node_modules")),
+        compilerOptions: convertCompilerOptionsToJson(buildConfig.config),
+        files: buildConfig.moduleFiles.filter(f => !f.startsWith("node_modules")),
         include: tsconfig.include
     }, null, 4));
 
-    if (emitDeclarations) {
-        config.noEmit = false;
+    if (buildConfig.emitDeclaration) {
+        buildConfig.config.noEmit = false;
     }
 
-    const program: ts.Program = loadProgram(project, config);
-    setProgram(program);
+    loadProgram(buildConfig);
+    setProgram(buildConfig.program);
 
-    program.getSourceFiles().map(s => s.fileName).forEach(file => {
+    buildConfig.program.getSourceFiles().map(s => s.fileName).forEach(file => {
         if (isMetaFile(file)) {
             return;
         }
         if (!isSourceFile(file)) {
             return;
         }
-        if (!project.files.includes(file) && !platform.isFileIncluded(file)) {
+        if (!buildConfig.project.files.includes(file) && !buildConfig.platform.isFileIncluded(file)) {
             console.log(`WARNING: Loading file '${file}' which is not content of the bundle`);
         }
     });
 
-    const allDiagnostics: readonly ts.Diagnostic[] = ts.getPreEmitDiagnostics(program).concat(program.emit(undefined, fileName => void 0).diagnostics);
+    const allDiagnostics: readonly ts.Diagnostic[] = ts.getPreEmitDiagnostics(buildConfig.program).concat(buildConfig.program.emit(undefined, fileName => void 0).diagnostics);
     if (allDiagnostics.length != 0) {
         allDiagnostics.forEach(diagnostic => {
             if (diagnostic.file) {
@@ -185,23 +205,15 @@ export default function build(args: string[]): void {
     }
 
     const modules: ts.SourceFile[] = [];
-    for (let i: number = 0; i < project.map.length; i++) {
-        const info: FileMapEntry = project.map[i];
-        let sourceFile: ts.SourceFile = program.getSourceFile(info.file)!;
-        modules[i] = transformToModule(sourceFile, info, project, platform, transformPlugins);
+    for (let i: number = 0; i < buildConfig.project.map.length; i++) {
+        const info: FileMapEntry = buildConfig.project.map[i];
+        let sourceFile: ts.SourceFile = buildConfig.program.getSourceFile(info.file)!;
+        modules[i] = transformToModule(sourceFile, buildConfig, info);
     }
     emitModule(
-        program,
-        project,
+        buildConfig,
         modules,
-        platform,
-        transformPlugins,
-        config,
-        path.join(process.cwd(), outPath),
-        moduleName,
-        chunkSize,
-        embeddedFileMap,
-        emitDeclarations,
-        !!entryFile ? project.map.find(e => e.file == entryFile)!.hash : undefined
+        path.join(process.cwd(), buildConfig.outPath),
+        !!buildConfig.entryFile ? buildConfig.project.map.find(e => e.file == buildConfig.entryFile)!.hash : undefined
     );
 }

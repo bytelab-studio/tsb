@@ -3,10 +3,9 @@ import * as fs from "fs";
 import * as path from "path";
 import * as fnv from "fnv-plus";
 import {generateAppDomain, generateDataManager, generateModuleConstructor, generateTSBModule} from "./template";
-import {Project} from "./loader";
+import {BuildConfig} from "./loader";
 import {PlatformPlugin, TransformPlugin} from "./plugin";
 import {throwError} from "./error";
-import tryConvertScriptKindName = ts.server.tryConvertScriptKindName;
 
 export interface ChunkInfo {
     filePath: string;
@@ -100,11 +99,11 @@ function chunkModules(modules: ts.SourceFile[], chunkSize: number): ts.SourceFil
 }
 
 
-function createLoader(platform: PlatformPlugin, chunkInfos: ChunkInfo[], embeddedFileMap: boolean, entryHash?: string): ts.SourceFile {
+function createLoader(buildConfig: BuildConfig, chunkInfos: ChunkInfo[], entryHash?: string): ts.SourceFile {
     const statements: ts.Statement[] = [
         generateDataManager(
-            platform,
-            embeddedFileMap ?
+            buildConfig.platform,
+            buildConfig.embeddedFileMap ?
                 ts.factory.createArrayLiteralExpression(
                     chunkInfos.map(info =>
                         ts.factory.createArrayLiteralExpression(
@@ -126,15 +125,15 @@ function createLoader(platform: PlatformPlugin, chunkInfos: ChunkInfo[], embedde
                 ) :
                 undefined
         ),
-        generateAppDomain(platform),
+        generateAppDomain(buildConfig.platform),
         generateTSBModule(),
-        ...platform.generateCustomLoaderProperties()
+        ...buildConfig.platform.generateCustomLoaderProperties()
     ];
 
     const callChain: ts.CallExpression[] = [];
 
-    if (!embeddedFileMap) {
-        callChain.push(platform.generateInitFileMapCall());
+    if (!buildConfig.embeddedFileMap) {
+        callChain.push(buildConfig.platform.generateInitFileMapCall());
     }
 
     if (entryHash) {
@@ -165,59 +164,46 @@ function createLoader(platform: PlatformPlugin, chunkInfos: ChunkInfo[], embedde
     );
 }
 
-function writeSourceFile(file: ts.SourceFile | string, outPath: string, name: string, transformPlugins: TransformPlugin[], config: ts.CompilerOptions): void {
+function writeSourceFile(file: ts.SourceFile | string, outPath: string, name: string, buildConfig: BuildConfig): void {
     const printer: ts.Printer = ts.createPrinter({
         removeComments: true
     });
     const code: string = typeof file != "string" ? printer.printFile(file) : file;
-    let result: string = ts.transpile(code, config);
-    transformPlugins.forEach(plugin => result = plugin.transformJavaScript(result));
+    let result: string = ts.transpile(code, buildConfig.config);
+    buildConfig.transformPlugins.forEach(plugin => result = plugin.transformJavaScript(result));
     fs.writeFileSync(path.join(outPath, name + ".js"), result);
 }
 
-export function emitModule(
-    program: ts.Program,
-    project: Project,
-    parts: ts.SourceFile[],
-    platform: PlatformPlugin,
-    transformPlugins: TransformPlugin[],
-    config: ts.CompilerOptions,
-    outPath: string,
-    moduleName: string,
-    chunkSize: number,
-    embeddedFileMap: boolean,
-    emitDeclaration: boolean,
-    entryHash?: string
-): void {
-    checkDirs(outPath, emitDeclaration);
-    const chunks: ts.SourceFile[][] = chunkModules(parts, chunkSize);
+export function emitModule(buildConfig: BuildConfig, parts: ts.SourceFile[], outPath: string, entryHash?: string): void {
+    checkDirs(outPath, buildConfig.emitDeclaration);
+    const chunks: ts.SourceFile[][] = chunkModules(parts, buildConfig.chunkSize);
     const chunkInfos: ChunkInfo[] = [];
     chunks.forEach((chunk: ts.SourceFile[], index: number): void => {
         const hash: string = fnv.hash(path.join(outPath, "chunks", "chunk" + index)).str();
-        let chunkSource: string = createChunk(platform, hash, chunk);
+        let chunkSource: string = createChunk(buildConfig.platform, hash, chunk);
         chunkInfos.push({
             filePath: `/chunks/${hash}.js`,
             hash: hash,
-            modules: project.map.filter(e => parts.map(f => f.fileName).includes(e.file)).map(e => [e.hash, e.resource])
+            modules: buildConfig.project.map.filter(e => parts.map(f => f.fileName).includes(e.file)).map(e => [e.hash, e.resource])
         });
 
-        writeSourceFile(chunkSource, path.join(outPath, "chunks"), hash, transformPlugins, config);
+        writeSourceFile(chunkSource, path.join(outPath, "chunks"), hash, buildConfig);
     });
 
-    writeSourceFile(createLoader(platform, chunkInfos, embeddedFileMap, entryHash), outPath, moduleName, transformPlugins, config);
+    writeSourceFile(createLoader(buildConfig, chunkInfos, entryHash), outPath, buildConfig.moduleName, buildConfig);
 
-    if (!embeddedFileMap) {
+    if (!buildConfig.embeddedFileMap) {
         fs.writeFileSync(path.join(outPath, "fm.json"), JSON.stringify(chunkInfos.map(i => [null, i.filePath, i.hash, false, i.modules, null])));
     }
-    if (emitDeclaration) {
-        project.map.forEach(f => {
-            const sourceFile: ts.SourceFile = program.getSourceFile(f.file)!;
+    if (buildConfig.emitDeclaration) {
+        buildConfig.project.map.forEach(f => {
+            const sourceFile: ts.SourceFile = buildConfig.program.getSourceFile(f.file)!;
             const text: string = ts.transpileDeclaration(sourceFile.getText(), {
                 fileName: sourceFile.fileName,
                 moduleName: sourceFile.moduleName,
-                compilerOptions: config
+                compilerOptions: buildConfig.config
             }).outputText;
-            const filePath: string = path.join(outPath, "types", f.resource.substring(6 + moduleName.length, f.resource.length - 3)) + ".d.ts";
+            const filePath: string = path.join(outPath, "types", f.resource.substring(6 + buildConfig.moduleName.length, f.resource.length - 3)) + ".d.ts";
             const fileDir: string = path.dirname(filePath);
 
             if (!fs.existsSync(fileDir) || !fs.statSync(fileDir).isDirectory()) {

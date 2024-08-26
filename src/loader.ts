@@ -4,6 +4,29 @@ import * as ts from "typescript";
 import * as fnv from "fnv-plus";
 import {stringify} from "node:querystring";
 import {throwError} from "./error";
+import {PlatformPlugin, TransformPlugin} from "./plugin";
+
+export interface BuildConfig {
+    // Options
+    moduleName: string;
+    moduleFiles: string[];
+    platformName: string;
+    requestHelp: boolean;
+    entryFile: string|undefined;
+    outPath: string;
+    chunkSize: number;
+    useBuilder: boolean;
+    embeddedFileMap: boolean;
+    emitDeclaration: boolean;
+    transformPlugins: TransformPlugin[];
+
+    // Holder
+    config: ts.CompilerOptions;
+    fileMap: FileMap;
+    project: Project;
+    program: ts.Program;
+    platform: PlatformPlugin;
+}
 
 export interface Project {
     files: string[];
@@ -69,7 +92,7 @@ function generateFileMap(files: string[], prefix: string, moduleName: string): F
         return [
             {
                 file: files[0],
-                resource: prefix + moduleName +"/"+ path.basename(files[0]),
+                resource: prefix + moduleName + "/" + path.basename(files[0]),
                 hash: fnv.hash(files[0]).str()
             }
         ]
@@ -101,8 +124,8 @@ function generateFileMap(files: string[], prefix: string, moduleName: string): F
     });
 }
 
-export function loadProgram(project: Project, config: ts.CompilerOptions): ts.Program {
-    return ts.createProgram(project.files, config);
+export function loadProgram(buildConfig: BuildConfig): void {
+    buildConfig.program = ts.createProgram(buildConfig.project.files, buildConfig.config);
 }
 
 export function isMetaFile(file: string): boolean {
