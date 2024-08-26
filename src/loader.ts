@@ -95,7 +95,7 @@ function generateFileMap(files: string[], prefix: string, moduleName: string): F
     return files.map(f => {
         return {
             file: f,
-            resource: minPath && f.startsWith(minPath) ? prefix + f.slice(minPath.length) : prefix + moduleName + f,
+            resource: minPath && f.startsWith(minPath) ? prefix + moduleName + f.slice(minPath.length) : prefix + moduleName + f,
             hash: fnv.hash(f).str()
         }
     });
